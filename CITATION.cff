@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software or its retained evidence, please cite the technical report."
+title: "Fast Polynomial Transcendentals for LLMs"
+type: software
+authors:
+  - family-names: "Hu"
+    given-names: "Robert"
+    email: "robert.stats.hu@gmail.com"
+version: 0.1.0
+repository-code: "https://github.com/MrHuff/fast-polynomial-transcendentals"
+license: Apache-2.0
+keywords:
+  - polynomial approximation
+  - special function units
+  - large language models
+  - CUDA
+  - FlashAttention
+preferred-citation:
+  type: report
+  title: "Fast Polynomial Transcendentals for LLMs"
+  authors:
+    - family-names: "Hu"
+      given-names: "Robert"
+      email: "robert.stats.hu@gmail.com"
+  year: 2026

@@ -1,0 +1,256 @@
+{
+  "gpu": "NVIDIA GB200",
+  "arguments": {
+    "batch_size": 1,
+    "sequence_length": 4096,
+    "heads": 32,
+    "kv_heads": 8,
+    "head_dim": 128,
+    "warmup": 30,
+    "iterations": 300,
+    "rounds": 9,
+    "seed": 1234,
+    "forward_only": true,
+    "variants": "sfu=d3:0:0,d3_auto=d3:auto:0,pwl2_safe_25=pwl2_safe:16:0,pwl2_safe_40=pwl2_safe:10:0,d2_safe_25=d2_safe:16:0,d2_safe_40=d2_safe:10:0",
+    "json_out": "../report/data/b5_exp2_d2_safe_forward_8b_gb200.json"
+  },
+  "forward_measurement_order": [
+    [
+      "sfu",
+      "d3_auto",
+      "pwl2_safe_25",
+      "pwl2_safe_40",
+      "d2_safe_25",
+      "d2_safe_40"
+    ],
+    [
+      "sfu",
+      "d2_safe_40",
+      "d2_safe_25",
+      "pwl2_safe_40",
+      "pwl2_safe_25",
+      "d3_auto"
+    ],
+    [
+      "pwl2_safe_25",
+      "pwl2_safe_40",
+      "d2_safe_25",
+      "d2_safe_40",
+      "sfu",
+      "d3_auto"
+    ],
+    [
+      "pwl2_safe_25",
+      "d3_auto",
+      "sfu",
+      "d2_safe_40",
+      "d2_safe_25",
+      "pwl2_safe_40"
+    ],
+    [
+      "d2_safe_25",
+      "d2_safe_40",
+      "sfu",
+      "d3_auto",
+      "pwl2_safe_25",
+      "pwl2_safe_40"
+    ],
+    [
+      "d2_safe_25",
+      "pwl2_safe_40",
+      "pwl2_safe_25",
+      "d3_auto",
+      "sfu",
+      "d2_safe_40"
+    ],
+    [
+      "sfu",
+      "d3_auto",
+      "pwl2_safe_25",
+      "pwl2_safe_40",
+      "d2_safe_25",
+      "d2_safe_40"
+    ],
+    [
+      "sfu",
+      "d2_safe_40",
+      "d2_safe_25",
+      "pwl2_safe_40",
+      "pwl2_safe_25",
+      "d3_auto"
+    ],
+    [
+      "pwl2_safe_25",
+      "pwl2_safe_40",
+      "d2_safe_25",
+      "d2_safe_40",
+      "sfu",
+      "d3_auto"
+    ]
+  ],
+  "forward_backward_measurement_order": null,
+  "rows": [
+    {
+      "name": "sfu",
+      "backend": "d3",
+      "forward_frequency": 0,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.21766527811686198,
+      "forward_samples_ms": [
+        0.21959508260091146,
+        0.21850730895996093,
+        0.21855552673339843,
+        0.21873184204101562,
+        0.21747467041015625,
+        0.21766527811686198,
+        0.21751744588216146,
+        0.2175432586669922,
+        0.21749771118164063
+      ],
+      "forward_backward_ms": null,
+      "forward_backward_samples_ms": null,
+      "output_relative_l2": 0.0,
+      "output_relative_mae": 0.0,
+      "max_tensor_relative_l2": 0.0,
+      "max_tensor_relative_mae": 0.0,
+      "min_tensor_cosine": 1.0000001192092896
+    },
+    {
+      "name": "d3_auto",
+      "backend": "d3",
+      "forward_frequency": null,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.21851125081380207,
+      "forward_samples_ms": [
+        0.2189782460530599,
+        0.21951220194498697,
+        0.21962750752766927,
+        0.21953697204589845,
+        0.218436279296875,
+        0.21840799967447916,
+        0.21841824849446614,
+        0.21844576517740885,
+        0.21851125081380207
+      ],
+      "forward_backward_ms": null,
+      "forward_backward_samples_ms": null,
+      "output_relative_l2": 0.00047095678746700287,
+      "output_relative_mae": 0.000122977900900878,
+      "max_tensor_relative_l2": 0.00047095678746700287,
+      "max_tensor_relative_mae": 0.000122977900900878,
+      "min_tensor_cosine": 0.9999999403953552
+    },
+    {
+      "name": "pwl2_safe_25",
+      "backend": "pwl2_safe",
+      "forward_frequency": 16,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.25,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.2170373280843099,
+      "forward_samples_ms": [
+        0.21765780131022136,
+        0.21776458740234375,
+        0.21760052998860677,
+        0.21787445068359376,
+        0.21678677876790364,
+        0.21690091451009114,
+        0.2170171610514323,
+        0.21700063069661457,
+        0.2170373280843099
+      ],
+      "forward_backward_ms": null,
+      "forward_backward_samples_ms": null,
+      "output_relative_l2": 0.002206858480349183,
+      "output_relative_mae": 0.0020105859730392694,
+      "max_tensor_relative_l2": 0.002206858480349183,
+      "max_tensor_relative_mae": 0.0020105859730392694,
+      "min_tensor_cosine": 0.999997615814209
+    },
+    {
+      "name": "pwl2_safe_40",
+      "backend": "pwl2_safe",
+      "forward_frequency": 10,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.4,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.21913536071777343,
+      "forward_samples_ms": [
+        0.21980692545572916,
+        0.21979082743326822,
+        0.219859619140625,
+        0.21936256408691407,
+        0.21904436747233072,
+        0.21895787556966145,
+        0.21889483133951823,
+        0.21900650024414062,
+        0.21913536071777343
+      ],
+      "forward_backward_ms": null,
+      "forward_backward_samples_ms": null,
+      "output_relative_l2": 0.002524585695937276,
+      "output_relative_mae": 0.0024562329053878784,
+      "max_tensor_relative_l2": 0.002524585695937276,
+      "max_tensor_relative_mae": 0.0024562329053878784,
+      "min_tensor_cosine": 0.9999970197677612
+    },
+    {
+      "name": "d2_safe_25",
+      "backend": "d2_safe",
+      "forward_frequency": 16,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.25,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.21683156331380207,
+      "forward_samples_ms": [
+        0.2173925272623698,
+        0.2175110371907552,
+        0.21749376932779949,
+        0.2176355234781901,
+        0.2166509755452474,
+        0.21671371459960936,
+        0.21660458882649739,
+        0.21683156331380207,
+        0.21673505147298178
+      ],
+      "forward_backward_ms": null,
+      "forward_backward_samples_ms": null,
+      "output_relative_l2": 0.0013046844396740198,
+      "output_relative_mae": 0.0008276682929135859,
+      "max_tensor_relative_l2": 0.0013046844396740198,
+      "max_tensor_relative_mae": 0.0008276682929135859,
+      "min_tensor_cosine": 0.9999991655349731
+    },
+    {
+      "name": "d2_safe_40",
+      "backend": "d2_safe",
+      "forward_frequency": 10,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.4,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.21651145935058594,
+      "forward_samples_ms": [
+        0.21712778727213541,
+        0.21715904235839845,
+        0.21712384541829427,
+        0.2172936503092448,
+        0.2164093780517578,
+        0.21648918151855467,
+        0.21634198506673177,
+        0.21651145935058594,
+        0.2165038808186849
+      ],
+      "forward_backward_ms": null,
+      "forward_backward_samples_ms": null,
+      "output_relative_l2": 0.0014799609780311584,
+      "output_relative_mae": 0.0010315730469301343,
+      "max_tensor_relative_l2": 0.0014799609780311584,
+      "max_tensor_relative_mae": 0.0010315730469301343,
+      "min_tensor_cosine": 0.999998927116394
+    }
+  ]
+}

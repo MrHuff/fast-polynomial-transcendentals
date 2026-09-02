@@ -1,0 +1,48 @@
+{
+  "constraints": {
+    "p(0)": 1.0,
+    "p(1)": 2.0
+  },
+  "domain": [
+    0.0,
+    1.0
+  ],
+  "note": "Sampled minimax values are dense-grid estimates, not formal certificates.",
+  "quadratic": {
+    "least_squares": {
+      "c1": 0.6563658610903753,
+      "c2": 0.3436341389096247,
+      "max_abs_error": 0.00391887383904832,
+      "max_rel_error": 0.0032035413765638676,
+      "rms_error": 0.002732024147830604,
+      "rms_rel_error": 0.0019869205052764852
+    },
+    "sampled_minimax": {
+      "c1": 0.6602339719000094,
+      "c2": 0.33976602809999057,
+      "max_abs_error": 0.004565283522332209,
+      "max_rel_error": 0.0026787231420925825,
+      "rms_error": 0.0028218253229852783,
+      "rms_rel_error": 0.001920960673548355
+    }
+  },
+  "samples": 1000001,
+  "two_piece_linear": {
+    "least_squares": {
+      "c1": 0.7852775264229545,
+      "c1_delta": 0.4294449471540911,
+      "max_abs_error": 0.021574799161617975,
+      "max_rel_error": 0.01525568678991791,
+      "rms_error": 0.010073042629674848,
+      "rms_rel_error": 0.006754253109364504
+    },
+    "sampled_minimax": {
+      "c1": 0.7980513010317143,
+      "c1_delta": 0.4038973979365714,
+      "max_abs_error": 0.01852344934625716,
+      "max_rel_error": 0.010739475466317436,
+      "rms_error": 0.010726771059742584,
+      "rms_rel_error": 0.007174247573493807
+    }
+  }
+}

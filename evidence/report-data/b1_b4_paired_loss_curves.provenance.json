@@ -1,0 +1,700 @@
+{
+  "artifact": "b1_b4_paired_loss_curves.csv",
+  "artifact_sha256": "72774b496f537b73300e71479c4b77afe850a038fbd8ff5fec6092a8c4d31feb",
+  "contributing_run_ids": {
+    "B1.baseline": [
+      "o14xfnca",
+      "vc2i3x7k",
+      "gxprswh3",
+      "oyjjtz4b",
+      "shn5d12l",
+      "s0v5rijz",
+      "l7w26afl",
+      "z61x0ddv",
+      "eofre1ab",
+      "uk9h2tmw",
+      "t9yrfv53",
+      "rdcb5e8g",
+      "qnu2p7rb",
+      "bx6qphrt",
+      "nk5amdv9"
+    ],
+    "B1.candidate": [
+      "w4q9f27f",
+      "4cccprar",
+      "f01zi016",
+      "rzvj81pe",
+      "qgjwn0hj",
+      "g6xk17q4",
+      "2gw7i2dx",
+      "3jexmvjn",
+      "ab64c0ts",
+      "fcflqcj5",
+      "ogzu72by",
+      "ixvyg6yz",
+      "mysgipbu",
+      "ko40fmfy",
+      "c4xb67ox"
+    ],
+    "B2.baseline": [
+      "b1o9b9wz",
+      "opobozie",
+      "5slh2vbj",
+      "mlmondju",
+      "ulb1fnho",
+      "l145xf93",
+      "rqxlqpvw",
+      "1fzdexdb",
+      "mplcdjt9",
+      "my3tbpxy"
+    ],
+    "B2.candidate": [
+      "74j0ratp"
+    ],
+    "B3.baseline": [
+      "h4g4tyfw",
+      "sx25os7v",
+      "pjgz6h30",
+      "0rrdz6u5",
+      "oeqgqr2d",
+      "mv1bv1z4",
+      "c1tiu9px",
+      "yq0hab5c",
+      "ntub0vuj",
+      "twgqu33g",
+      "r7at7chm",
+      "g1gsxc9u",
+      "c88whw7p",
+      "pjfsf4jk",
+      "ummcmjbw",
+      "ulrvewu7",
+      "8rc5x79v",
+      "lfh20lne"
+    ],
+    "B3.candidate": [
+      "o288mvrg",
+      "hct7yfpu",
+      "tsfteyu6",
+      "rc6i1783",
+      "g4a76c59",
+      "g2iw4rav",
+      "nttj4awm",
+      "7jyvrgey",
+      "pmmvjuzt",
+      "6vv60hdg",
+      "n45thg63",
+      "1j4fyc5p",
+      "jnpa9wr3",
+      "yxrm581o",
+      "h93rj48m",
+      "0g3jdspv",
+      "v3ktdrie",
+      "rle5mdby",
+      "lpu9ygnx",
+      "nqufkxp2",
+      "7xoezipi",
+      "gi1a35kf"
+    ],
+    "B4.baseline": [
+      "zuls4fd0",
+      "mti6f13e",
+      "8yigfnqe"
+    ],
+    "B4.candidate": [
+      "l9d8y4ol",
+      "vk97wol5",
+      "0jip1s1d"
+    ]
+  },
+  "contributing_runs": {
+    "B1.baseline": [
+      {
+        "run_created_at": "2026-07-19T13:13:27Z",
+        "run_id": "o14xfnca",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T07:46:32Z",
+        "run_id": "vc2i3x7k",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T08:49:46Z",
+        "run_id": "gxprswh3",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-23T14:55:11Z",
+        "run_id": "oyjjtz4b",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-24T21:40:34Z",
+        "run_id": "shn5d12l",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-25T08:13:38Z",
+        "run_id": "s0v5rijz",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-01T21:15:23Z",
+        "run_id": "l7w26afl",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T17:30:48Z",
+        "run_id": "z61x0ddv",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T23:24:37Z",
+        "run_id": "eofre1ab",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-03T18:21:51Z",
+        "run_id": "uk9h2tmw",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-03T23:42:19Z",
+        "run_id": "t9yrfv53",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-04T12:31:58Z",
+        "run_id": "rdcb5e8g",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T02:11:09Z",
+        "run_id": "qnu2p7rb",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T12:24:14Z",
+        "run_id": "bx6qphrt",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T16:40:37Z",
+        "run_id": "nk5amdv9",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-native:rank_0",
+        "run_state": "finished"
+      }
+    ],
+    "B1.candidate": [
+      {
+        "run_created_at": "2026-07-19T13:12:25Z",
+        "run_id": "w4q9f27f",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T07:46:52Z",
+        "run_id": "4cccprar",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T10:12:07Z",
+        "run_id": "f01zi016",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T12:28:27Z",
+        "run_id": "rzvj81pe",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-22T01:29:17Z",
+        "run_id": "qgjwn0hj",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-23T14:54:03Z",
+        "run_id": "g6xk17q4",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-25T08:24:39Z",
+        "run_id": "2gw7i2dx",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-01T21:14:33Z",
+        "run_id": "3jexmvjn",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T17:41:07Z",
+        "run_id": "ab64c0ts",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T23:24:26Z",
+        "run_id": "fcflqcj5",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-03T18:22:53Z",
+        "run_id": "ogzu72by",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-03T23:42:07Z",
+        "run_id": "ixvyg6yz",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-04T12:31:31Z",
+        "run_id": "mysgipbu",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-04T16:01:07Z",
+        "run_id": "ko40fmfy",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T02:10:54Z",
+        "run_id": "c4xb67ox",
+        "run_name": "b1-packed-prod-0719-130706-8b-b1-silu-d3:rank_0",
+        "run_state": "finished"
+      }
+    ],
+    "B2.baseline": [
+      {
+        "run_created_at": "2026-07-18T22:04:15Z",
+        "run_id": "b1o9b9wz",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T07:24:49Z",
+        "run_id": "opobozie",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-22T01:36:15Z",
+        "run_id": "5slh2vbj",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-23T14:53:51Z",
+        "run_id": "mlmondju",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-25T08:39:55Z",
+        "run_id": "ulb1fnho",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-01T21:17:11Z",
+        "run_id": "l145xf93",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T17:48:39Z",
+        "run_id": "rqxlqpvw",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T23:23:32Z",
+        "run_id": "1fzdexdb",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-03T18:29:42Z",
+        "run_id": "mplcdjt9",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-03T23:41:16Z",
+        "run_id": "my3tbpxy",
+        "run_name": "poly-recovery-production-0718-215239-8b-b2-sfu:rank_0",
+        "run_state": "finished"
+      }
+    ],
+    "B2.candidate": [
+      {
+        "run_created_at": "2026-07-10T17:11:29Z",
+        "run_id": "74j0ratp",
+        "run_name": "polyprod-dev300b-8b-b2-d4:rank_0",
+        "run_state": "finished"
+      }
+    ],
+    "B3.baseline": [
+      {
+        "run_created_at": "2026-07-19T23:24:33Z",
+        "run_id": "h4g4tyfw",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T07:45:24Z",
+        "run_id": "sx25os7v",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T10:08:40Z",
+        "run_id": "pjgz6h30",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T12:51:44Z",
+        "run_id": "0rrdz6u5",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-22T01:28:54Z",
+        "run_id": "oeqgqr2d",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-23T14:54:13Z",
+        "run_id": "mv1bv1z4",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-25T09:09:08Z",
+        "run_id": "c1tiu9px",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T17:35:13Z",
+        "run_id": "yq0hab5c",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T23:26:41Z",
+        "run_id": "ntub0vuj",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-03T21:07:50Z",
+        "run_id": "twgqu33g",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-04T12:23:30Z",
+        "run_id": "r7at7chm",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T02:10:06Z",
+        "run_id": "g1gsxc9u",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T12:19:08Z",
+        "run_id": "c88whw7p",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T16:41:24Z",
+        "run_id": "pjfsf4jk",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T20:38:17Z",
+        "run_id": "ummcmjbw",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-06T19:40:59Z",
+        "run_id": "ulrvewu7",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-08T03:49:48Z",
+        "run_id": "8rc5x79v",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-08T14:26:12Z",
+        "run_id": "lfh20lne",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-sfu:rank_0",
+        "run_state": "finished"
+      }
+    ],
+    "B3.candidate": [
+      {
+        "run_created_at": "2026-07-19T23:24:28Z",
+        "run_id": "o288mvrg",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T07:45:53Z",
+        "run_id": "hct7yfpu",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T10:08:26Z",
+        "run_id": "tsfteyu6",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-21T13:00:31Z",
+        "run_id": "rc6i1783",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-22T01:30:01Z",
+        "run_id": "g4a76c59",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-23T14:54:18Z",
+        "run_id": "g2iw4rav",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-25T13:29:26Z",
+        "run_id": "nttj4awm",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-26T04:48:39Z",
+        "run_id": "7jyvrgey",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-25T20:51:02Z",
+        "run_id": "pmmvjuzt",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-25T15:25:52Z",
+        "run_id": "6vv60hdg",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-07-25T10:25:18Z",
+        "run_id": "n45thg63",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T17:41:13Z",
+        "run_id": "1j4fyc5p",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-02T23:26:40Z",
+        "run_id": "jnpa9wr3",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-03T18:57:51Z",
+        "run_id": "yxrm581o",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-04T00:14:48Z",
+        "run_id": "h93rj48m",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-04T13:35:04Z",
+        "run_id": "0g3jdspv",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T02:33:56Z",
+        "run_id": "v3ktdrie",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T12:19:16Z",
+        "run_id": "rle5mdby",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T16:41:27Z",
+        "run_id": "lpu9ygnx",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-05T20:38:18Z",
+        "run_id": "nqufkxp2",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-08T03:32:05Z",
+        "run_id": "7xoezipi",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-08T14:24:02Z",
+        "run_id": "gi1a35kf",
+        "run_name": "poly-b3-d3d4-rerun-0719-231920-8b-b3-d3-d4:rank_0",
+        "run_state": "finished"
+      }
+    ],
+    "B4.baseline": [
+      {
+        "run_created_at": "2026-08-01T17:14:07Z",
+        "run_id": "zuls4fd0",
+        "run_name": "poly-b4-100b-rack-0801-b4-27a4b-native:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-05T04:58:17Z",
+        "run_id": "mti6f13e",
+        "run_name": "poly-b4-100b-rack-0801-b4-27a4b-native:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-08T23:55:09Z",
+        "run_id": "8yigfnqe",
+        "run_name": "poly-b4-100b-rack-0801-b4-27a4b-native:rank_0",
+        "run_state": "finished"
+      }
+    ],
+    "B4.candidate": [
+      {
+        "run_created_at": "2026-08-01T17:13:00Z",
+        "run_id": "l9d8y4ol",
+        "run_name": "poly-b4-100b-rack-0801-b4-27a4b-expert-only-d3:rank_0",
+        "run_state": "crashed"
+      },
+      {
+        "run_created_at": "2026-08-04T15:36:11Z",
+        "run_id": "vk97wol5",
+        "run_name": "poly-b4-100b-rack-0801-b4-27a4b-expert-only-d3:rank_0",
+        "run_state": "finished"
+      },
+      {
+        "run_created_at": "2026-08-08T23:54:52Z",
+        "run_id": "0jip1s1d",
+        "run_name": "poly-b4-100b-rack-0801-b4-27a4b-expert-only-d3:rank_0",
+        "run_state": "finished"
+      }
+    ]
+  },
+  "figure_artifact": "b1_b4_paired_loss_curves.pdf",
+  "figure_sha256": "3f8e35c259e47433154dff2c7c651f982764eb75e343419430a4263cbb3752d7",
+  "history_keys": [
+    "n_tokens_seen",
+    "loss_metrics/global_avg_loss"
+  ],
+  "invocation": [
+    "generate_wandb_loss_curves.py",
+    "--write-provenance"
+  ],
+  "observed_max_tokens": {
+    "B1.baseline": 100270080000.0,
+    "B1.candidate": 100270080000.0,
+    "B2.baseline": 100270080000.0,
+    "B2.candidate": 300000083968.0,
+    "B3.baseline": 100270080000.0,
+    "B3.candidate": 100270080000.0,
+    "B4.baseline": 100243865600.0,
+    "B4.candidate": 100243865600.0
+  },
+  "provenance_written_at_utc": "2026-09-01T23:27:44.084102+00:00",
+  "row_counts": {
+    "B1.baseline": 14567,
+    "B1.candidate": 17743,
+    "B2.baseline": 13305,
+    "B2.candidate": 2401,
+    "B3.baseline": 19120,
+    "B3.candidate": 21642,
+    "B4.baseline": 1913,
+    "B4.candidate": 1913
+  },
+  "samples_per_run": null,
+  "sampling_and_dedup_policy": "W&B sampled history plus each run summary endpoint; fragments are ordered by run creation time and replayed token coordinates keep the newest fragment.",
+  "sampling_note": "The recovered Aug. 17 snapshot did not preserve its original CLI. Its maximum 2,401 rows per run is consistent with a 2,400-sample request plus a summary endpoint.",
+  "schema_version": 1,
+  "smoothing": {
+    "derived_column": "smoothed_loss",
+    "half_life_tokens": 1000000000.0,
+    "kind": "causal-token-ewm",
+    "plot_grid_note": "Interpolation occurs only after per-arm smoothing.",
+    "plot_grid_step_tokens": 50000000.0
+  },
+  "source_mode": "recovered-materialized-csv",
+  "source_project": "graphcore/poly_stuff",
+  "source_snapshot_time_utc": null,
+  "tool_versions": {
+    "matplotlib": "3.10.7",
+    "pandas": "2.3.3",
+    "python": "3.12.3",
+    "wandb": "0.24.0"
+  }
+}

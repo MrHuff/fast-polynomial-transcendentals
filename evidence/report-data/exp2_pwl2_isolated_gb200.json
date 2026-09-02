@@ -1,0 +1,210 @@
+{
+  "source": "autonumerics_zero/cuda_benchmarks/benchmark_exp2_pwl2.cu",
+  "compile_command": [
+    "/usr/local/cuda-13.0/bin/nvcc",
+    "-O3",
+    "-std=c++17",
+    "-arch=sm_100",
+    "-lineinfo",
+    "autonumerics_zero/cuda_benchmarks/benchmark_exp2_pwl2.cu",
+    "-o",
+    "<temporary-binary>"
+  ],
+  "gpu": "name=NVIDIA GB200 cc=10.0",
+  "errors": [
+    {
+      "domain": "fractional_h2",
+      "variant": "native",
+      "max_abs": 0.000488241347,
+      "max_rel": 0.000486404651,
+      "rmse": 0.000282877104,
+      "samples": 2097152
+    },
+    {
+      "domain": "fractional_h2",
+      "variant": "pwl2_historical",
+      "max_abs": 0.01953125,
+      "max_rel": 0.010940964,
+      "rmse": 0.00662853655,
+      "samples": 2097152
+    },
+    {
+      "domain": "fractional_h2",
+      "variant": "pwl2_hinge",
+      "max_abs": 0.018854463,
+      "max_rel": 0.010940964,
+      "rmse": 0.00662452431,
+      "samples": 2097152
+    },
+    {
+      "domain": "full_f32",
+      "variant": "native",
+      "max_abs": 1.08388511e-07,
+      "max_rel": 1.42300794e-07,
+      "rmse": 9.94603795e-09,
+      "samples": 2097152
+    },
+    {
+      "domain": "full_f32",
+      "variant": "degree3",
+      "max_abs": 8.51484986e-05,
+      "max_rel": 8.76867888e-05,
+      "rmse": 1.26746955e-05,
+      "samples": 2097152
+    },
+    {
+      "domain": "full_f32",
+      "variant": "pwl2_hinge",
+      "max_abs": 0.0105388165,
+      "max_rel": 0.0105388165,
+      "rmse": 0.000954319254,
+      "samples": 2097152
+    }
+  ],
+  "timings": [
+    {
+      "regime": "compute",
+      "datatype": "fp16x2_fractional",
+      "variant": "native",
+      "ms": 0.077942,
+      "ns_per_value": 0.000290358071,
+      "speedup": 1.0
+    },
+    {
+      "regime": "compute",
+      "datatype": "fp16x2_fractional",
+      "variant": "pwl2_historical",
+      "ms": 0.119328,
+      "ns_per_value": 0.000444531439,
+      "speedup": 0.653178
+    },
+    {
+      "regime": "compute",
+      "datatype": "fp16x2_fractional",
+      "variant": "pwl2_hinge",
+      "ms": 0.041074,
+      "ns_per_value": 0.000153011076,
+      "speedup": 1.897628
+    },
+    {
+      "regime": "compute",
+      "datatype": "f32x2_full",
+      "variant": "native",
+      "ms": 0.077939,
+      "ns_per_value": 0.000290346136,
+      "speedup": 1.0
+    },
+    {
+      "regime": "compute",
+      "datatype": "f32x2_full",
+      "variant": "degree3",
+      "ms": 0.088147,
+      "ns_per_value": 0.000328373911,
+      "speedup": 0.884194
+    },
+    {
+      "regime": "compute",
+      "datatype": "f32x2_full",
+      "variant": "pwl2_hinge",
+      "ms": 0.09028,
+      "ns_per_value": 0.000336319222,
+      "speedup": 0.863305
+    },
+    {
+      "regime": "l2",
+      "datatype": "fp16x2_fractional",
+      "variant": "native",
+      "ms": 0.006238,
+      "bandwidth_gbs": 1344.672992,
+      "speedup": 1.0
+    },
+    {
+      "regime": "l2",
+      "datatype": "fp16x2_fractional",
+      "variant": "pwl2_historical",
+      "ms": 0.006245,
+      "bandwidth_gbs": 1343.29489,
+      "speedup": 0.998975
+    },
+    {
+      "regime": "l2",
+      "datatype": "fp16x2_fractional",
+      "variant": "pwl2_hinge",
+      "ms": 0.006258,
+      "bandwidth_gbs": 1340.547142,
+      "speedup": 0.996932
+    },
+    {
+      "regime": "l2",
+      "datatype": "f32x2_full",
+      "variant": "native",
+      "ms": 0.00419,
+      "bandwidth_gbs": 2001.863413,
+      "speedup": 1.0
+    },
+    {
+      "regime": "l2",
+      "datatype": "f32x2_full",
+      "variant": "degree3",
+      "ms": 0.00421,
+      "bandwidth_gbs": 1992.732838,
+      "speedup": 0.995439
+    },
+    {
+      "regime": "l2",
+      "datatype": "f32x2_full",
+      "variant": "pwl2_hinge",
+      "ms": 0.004182,
+      "bandwidth_gbs": 2005.692338,
+      "speedup": 1.001913
+    },
+    {
+      "regime": "hbm",
+      "datatype": "fp16x2_fractional",
+      "variant": "native",
+      "ms": 0.192331,
+      "bandwidth_gbs": 2791.387598,
+      "speedup": 1.0
+    },
+    {
+      "regime": "hbm",
+      "datatype": "fp16x2_fractional",
+      "variant": "pwl2_historical",
+      "ms": 0.195184,
+      "bandwidth_gbs": 2750.588634,
+      "speedup": 0.985384
+    },
+    {
+      "regime": "hbm",
+      "datatype": "fp16x2_fractional",
+      "variant": "pwl2_hinge",
+      "ms": 0.188542,
+      "bandwidth_gbs": 2847.481118,
+      "speedup": 1.020095
+    },
+    {
+      "regime": "hbm",
+      "datatype": "f32x2_full",
+      "variant": "native",
+      "ms": 0.111118,
+      "bandwidth_gbs": 4831.521321,
+      "speedup": 1.0
+    },
+    {
+      "regime": "hbm",
+      "datatype": "f32x2_full",
+      "variant": "degree3",
+      "ms": 0.111709,
+      "bandwidth_gbs": 4805.985956,
+      "speedup": 0.994715
+    },
+    {
+      "regime": "hbm",
+      "datatype": "f32x2_full",
+      "variant": "pwl2_hinge",
+      "ms": 0.11225,
+      "bandwidth_gbs": 4782.831493,
+      "speedup": 0.989922
+    }
+  ]
+}

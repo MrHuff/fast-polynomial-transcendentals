@@ -1,0 +1,443 @@
+{
+  "gpu": "NVIDIA GB200",
+  "arguments": {
+    "batch_size": 1,
+    "sequence_length": 4096,
+    "heads": 32,
+    "kv_heads": 8,
+    "head_dim": 128,
+    "warmup": 5,
+    "iterations": 20,
+    "rounds": 7,
+    "seed": 1234,
+    "forward_only": false,
+    "variants": "sfu=d3:0:0,d2_f33_b0=d2_safe:12:0,d2_f0_b12p5=d2_safe:0:32,d2_f0_b25=d2_safe:0:16,d2_f0_b33=d2_safe:0:12,d2_f0_b40=d2_safe:0:10,d2_f0_b50=d2_safe:0:8,d2_f0_b100=d2_safe:0:4",
+    "json_out": "../report/data/b5_exp2_d2_safe_backward_line_search_8b_gb200.json"
+  },
+  "forward_measurement_order": [
+    [
+      "sfu",
+      "d2_f33_b0",
+      "d2_f0_b12p5",
+      "d2_f0_b25",
+      "d2_f0_b33",
+      "d2_f0_b40",
+      "d2_f0_b50",
+      "d2_f0_b100"
+    ],
+    [
+      "sfu",
+      "d2_f0_b100",
+      "d2_f0_b50",
+      "d2_f0_b40",
+      "d2_f0_b33",
+      "d2_f0_b25",
+      "d2_f0_b12p5",
+      "d2_f33_b0"
+    ],
+    [
+      "d2_f0_b12p5",
+      "d2_f0_b25",
+      "d2_f0_b33",
+      "d2_f0_b40",
+      "d2_f0_b50",
+      "d2_f0_b100",
+      "sfu",
+      "d2_f33_b0"
+    ],
+    [
+      "d2_f0_b12p5",
+      "d2_f33_b0",
+      "sfu",
+      "d2_f0_b100",
+      "d2_f0_b50",
+      "d2_f0_b40",
+      "d2_f0_b33",
+      "d2_f0_b25"
+    ],
+    [
+      "d2_f0_b33",
+      "d2_f0_b40",
+      "d2_f0_b50",
+      "d2_f0_b100",
+      "sfu",
+      "d2_f33_b0",
+      "d2_f0_b12p5",
+      "d2_f0_b25"
+    ],
+    [
+      "d2_f0_b33",
+      "d2_f0_b25",
+      "d2_f0_b12p5",
+      "d2_f33_b0",
+      "sfu",
+      "d2_f0_b100",
+      "d2_f0_b50",
+      "d2_f0_b40"
+    ],
+    [
+      "d2_f0_b50",
+      "d2_f0_b100",
+      "sfu",
+      "d2_f33_b0",
+      "d2_f0_b12p5",
+      "d2_f0_b25",
+      "d2_f0_b33",
+      "d2_f0_b40"
+    ]
+  ],
+  "forward_backward_measurement_order": [
+    [
+      "sfu",
+      "d2_f33_b0",
+      "d2_f0_b12p5",
+      "d2_f0_b25",
+      "d2_f0_b33",
+      "d2_f0_b40",
+      "d2_f0_b50",
+      "d2_f0_b100"
+    ],
+    [
+      "sfu",
+      "d2_f0_b100",
+      "d2_f0_b50",
+      "d2_f0_b40",
+      "d2_f0_b33",
+      "d2_f0_b25",
+      "d2_f0_b12p5",
+      "d2_f33_b0"
+    ],
+    [
+      "d2_f0_b12p5",
+      "d2_f0_b25",
+      "d2_f0_b33",
+      "d2_f0_b40",
+      "d2_f0_b50",
+      "d2_f0_b100",
+      "sfu",
+      "d2_f33_b0"
+    ],
+    [
+      "d2_f0_b12p5",
+      "d2_f33_b0",
+      "sfu",
+      "d2_f0_b100",
+      "d2_f0_b50",
+      "d2_f0_b40",
+      "d2_f0_b33",
+      "d2_f0_b25"
+    ],
+    [
+      "d2_f0_b33",
+      "d2_f0_b40",
+      "d2_f0_b50",
+      "d2_f0_b100",
+      "sfu",
+      "d2_f33_b0",
+      "d2_f0_b12p5",
+      "d2_f0_b25"
+    ],
+    [
+      "d2_f0_b33",
+      "d2_f0_b25",
+      "d2_f0_b12p5",
+      "d2_f33_b0",
+      "sfu",
+      "d2_f0_b100",
+      "d2_f0_b50",
+      "d2_f0_b40"
+    ],
+    [
+      "d2_f0_b50",
+      "d2_f0_b100",
+      "sfu",
+      "d2_f33_b0",
+      "d2_f0_b12p5",
+      "d2_f0_b25",
+      "d2_f0_b33",
+      "d2_f0_b40"
+    ]
+  ],
+  "rows": [
+    {
+      "name": "sfu",
+      "backend": "d3",
+      "forward_frequency": 0,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.27642240524291994,
+      "forward_samples_ms": [
+        0.27642240524291994,
+        0.27504160404205324,
+        0.2756927967071533,
+        0.2758064031600952,
+        0.2790879964828491,
+        0.27853438854217527,
+        0.2786783933639526
+      ],
+      "forward_paired_speedup": 1.0,
+      "forward_backward_ms": 0.925211238861084,
+      "forward_backward_samples_ms": [
+        0.925211238861084,
+        0.9266351699829102,
+        0.9262415885925293,
+        0.9238096237182617,
+        0.9251808166503906,
+        0.9238752365112305,
+        0.9259535789489746
+      ],
+      "forward_backward_paired_speedup": 1.0,
+      "output_relative_l2": 0.0,
+      "output_relative_mae": 0.0,
+      "max_tensor_relative_l2": 0.0,
+      "max_tensor_relative_mae": 0.0,
+      "min_tensor_cosine": 0.9999998807907104
+    },
+    {
+      "name": "d2_f33_b0",
+      "backend": "d2_safe",
+      "forward_frequency": 12,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.3333333333333333,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.2728303909301758,
+      "forward_samples_ms": [
+        0.2733824014663696,
+        0.27240800857543945,
+        0.27198240756988523,
+        0.27152481079101565,
+        0.2748095989227295,
+        0.27356159687042236,
+        0.2728303909301758
+      ],
+      "forward_paired_speedup": 1.015568588495057,
+      "forward_backward_ms": 0.9227807998657227,
+      "forward_backward_samples_ms": [
+        0.9239232063293457,
+        0.9227807998657227,
+        0.9210432052612305,
+        0.9225680351257324,
+        0.9219424247741699,
+        0.924345588684082,
+        0.9240287780761719
+      ],
+      "forward_backward_paired_speedup": 1.0020830529508076,
+      "output_relative_l2": 0.0013149974402040243,
+      "output_relative_mae": 0.0008332569268532097,
+      "max_tensor_relative_l2": 0.001318276976235211,
+      "max_tensor_relative_mae": 0.0008332569268532097,
+      "min_tensor_cosine": 0.9999990463256836
+    },
+    {
+      "name": "d2_f0_b12p5",
+      "backend": "d2_safe",
+      "forward_frequency": 0,
+      "backward_frequency": 32,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.125,
+      "forward_ms": 0.2759664058685303,
+      "forward_samples_ms": [
+        0.27588639259338377,
+        0.2759664058685303,
+        0.27549920082092283,
+        0.2749648094177246,
+        0.27840960025787354,
+        0.27815520763397217,
+        0.2771728038787842
+      ],
+      "forward_paired_speedup": 1.001942874545198,
+      "forward_backward_ms": 0.9225616455078125,
+      "forward_backward_samples_ms": [
+        0.923862361907959,
+        0.9207728385925293,
+        0.9215167999267578,
+        0.9231568336486816,
+        0.9212656021118164,
+        0.9225616455078125,
+        0.9229776382446289
+      ],
+      "forward_backward_paired_speedup": 1.0032242825622575,
+      "output_relative_l2": 0.0,
+      "output_relative_mae": 0.0,
+      "max_tensor_relative_l2": 0.0018863639561459422,
+      "max_tensor_relative_mae": 0.0010585737181827426,
+      "min_tensor_cosine": 0.9999982118606567
+    },
+    {
+      "name": "d2_f0_b25",
+      "backend": "d2_safe",
+      "forward_frequency": 0,
+      "backward_frequency": 16,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.25,
+      "forward_ms": 0.27520160675048827,
+      "forward_samples_ms": [
+        0.2751568078994751,
+        0.27506721019744873,
+        0.27520160675048827,
+        0.27071199417114256,
+        0.277128005027771,
+        0.2774768114089966,
+        0.278056001663208
+      ],
+      "forward_paired_speedup": 1.0038114072588928,
+      "forward_backward_ms": 0.9233488082885742,
+      "forward_backward_samples_ms": [
+        0.922920036315918,
+        0.924953556060791,
+        0.9250320434570313,
+        0.9230159759521485,
+        0.9233488082885742,
+        0.92391357421875,
+        0.9222352027893066
+      ],
+      "forward_backward_paired_speedup": 1.0018180522806797,
+      "output_relative_l2": 0.0,
+      "output_relative_mae": 0.0,
+      "max_tensor_relative_l2": 0.0023851320147514343,
+      "max_tensor_relative_mae": 0.0015265409601852298,
+      "min_tensor_cosine": 0.9999971389770508
+    },
+    {
+      "name": "d2_f0_b33",
+      "backend": "d2_safe",
+      "forward_frequency": 0,
+      "backward_frequency": 12,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.3333333333333333,
+      "forward_ms": 0.2761663913726807,
+      "forward_samples_ms": [
+        0.2757983922958374,
+        0.27671520709991454,
+        0.2761663913726807,
+        0.2759088039398193,
+        0.27094080448150637,
+        0.27832319736480715,
+        0.2785887956619263
+      ],
+      "forward_paired_speedup": 1.0003216127260735,
+      "forward_backward_ms": 0.9237759590148926,
+      "forward_backward_samples_ms": [
+        0.9249839782714844,
+        0.9231792449951172,
+        0.9242176055908203,
+        0.9237168312072754,
+        0.9237759590148926,
+        0.9230064392089844,
+        0.9250639915466309
+      ],
+      "forward_backward_paired_speedup": 1.000961649583675,
+      "output_relative_l2": 0.0,
+      "output_relative_mae": 0.0,
+      "max_tensor_relative_l2": 0.002438441850244999,
+      "max_tensor_relative_mae": 0.0015445598401129246,
+      "min_tensor_cosine": 0.9999970197677612
+    },
+    {
+      "name": "d2_f0_b40",
+      "backend": "d2_safe",
+      "forward_frequency": 0,
+      "backward_frequency": 10,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.4,
+      "forward_ms": 0.2762896060943604,
+      "forward_samples_ms": [
+        0.2746671915054321,
+        0.2765039920806885,
+        0.27584960460662844,
+        0.2762896060943604,
+        0.2714128017425537,
+        0.2786959886550903,
+        0.2776079893112183
+      ],
+      "forward_paired_speedup": 0.99943154567976,
+      "forward_backward_ms": 0.9243391990661621,
+      "forward_backward_samples_ms": [
+        0.9243391990661621,
+        0.9237936019897461,
+        0.9248880386352539,
+        0.9237839698791503,
+        0.9241567611694336,
+        0.9246607780456543,
+        0.9246272087097168
+      ],
+      "forward_backward_paired_speedup": 1.001108097158388,
+      "output_relative_l2": 0.0,
+      "output_relative_mae": 0.0,
+      "max_tensor_relative_l2": 0.0027556053828448057,
+      "max_tensor_relative_mae": 0.001896130619570613,
+      "min_tensor_cosine": 0.9999962449073792
+    },
+    {
+      "name": "d2_f0_b50",
+      "backend": "d2_safe",
+      "forward_frequency": 0,
+      "backward_frequency": 8,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.5,
+      "forward_ms": 0.27639040946960447,
+      "forward_samples_ms": [
+        0.27639040946960447,
+        0.2748559951782227,
+        0.27601759433746337,
+        0.2753504037857056,
+        0.2781008005142212,
+        0.27756319046020506,
+        0.27832000255584716
+      ],
+      "forward_paired_speedup": 1.001287693319971,
+      "forward_backward_ms": 0.9351103782653809,
+      "forward_backward_samples_ms": [
+        0.9352016448974609,
+        0.9351696014404297,
+        0.9324095726013184,
+        0.9327024459838867,
+        0.9336864471435546,
+        0.9351103782653809,
+        0.9361023902893066
+      ],
+      "forward_backward_paired_speedup": 0.9904655313128892,
+      "output_relative_l2": 0.0,
+      "output_relative_mae": 0.0,
+      "max_tensor_relative_l2": 0.0030237999744713306,
+      "max_tensor_relative_mae": 0.0021924928296357393,
+      "min_tensor_cosine": 0.9999953508377075
+    },
+    {
+      "name": "d2_f0_b100",
+      "backend": "d2_safe",
+      "forward_frequency": 0,
+      "backward_frequency": 4,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 1.0,
+      "forward_ms": 0.27727200984954836,
+      "forward_samples_ms": [
+        0.2756335973739624,
+        0.27544479370117186,
+        0.27404639720916746,
+        0.27743680477142335,
+        0.27727200984954836,
+        0.27858400344848633,
+        0.27898879051208497
+      ],
+      "forward_paired_speedup": 0.9998219032475056,
+      "forward_backward_ms": 0.9796031951904297,
+      "forward_backward_samples_ms": [
+        0.9815360069274902,
+        0.9787391662597656,
+        0.9794079780578613,
+        0.9796031951904297,
+        0.9787872314453125,
+        0.9803824424743652,
+        0.9831839561462402
+      ],
+      "forward_backward_paired_speedup": 0.9430447228570727,
+      "output_relative_l2": 0.0,
+      "output_relative_mae": 0.0,
+      "max_tensor_relative_l2": 0.0038398851174861193,
+      "max_tensor_relative_mae": 0.0031267344020307064,
+      "min_tensor_cosine": 0.9999926090240479
+    }
+  ]
+}

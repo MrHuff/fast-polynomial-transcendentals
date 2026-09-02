@@ -1,0 +1,511 @@
+{
+  "gpu": "NVIDIA GB200",
+  "arguments": {
+    "batch_size": 1,
+    "sequence_length": 4096,
+    "heads": 32,
+    "kv_heads": 8,
+    "head_dim": 128,
+    "warmup": 5,
+    "iterations": 20,
+    "rounds": 5,
+    "seed": 1234,
+    "forward_only": false,
+    "variants": "sfu=d3:0:0,d3_auto=d3:auto:0,pwl25_b0=pwl2:16:0,pwl25_b20=pwl2:16:20,pwl25_b25=pwl2:16:16,pwl25_b33=pwl2:16:12,pwl25_b40=pwl2:16:10,pwl40_b0=pwl2:10:0,pwl40_b20=pwl2:10:20,pwl40_b25=pwl2:10:16,pwl40_b33=pwl2:10:12,pwl40_b40=pwl2:10:10",
+    "json_out": "../report/data/b5_exp2_backward_line_search_8b_gb200.json"
+  },
+  "forward_measurement_order": [
+    [
+      "sfu",
+      "d3_auto",
+      "pwl25_b0",
+      "pwl25_b20",
+      "pwl25_b25",
+      "pwl25_b33",
+      "pwl25_b40",
+      "pwl40_b0",
+      "pwl40_b20",
+      "pwl40_b25",
+      "pwl40_b33",
+      "pwl40_b40"
+    ],
+    [
+      "sfu",
+      "pwl40_b40",
+      "pwl40_b33",
+      "pwl40_b25",
+      "pwl40_b20",
+      "pwl40_b0",
+      "pwl25_b40",
+      "pwl25_b33",
+      "pwl25_b25",
+      "pwl25_b20",
+      "pwl25_b0",
+      "d3_auto"
+    ],
+    [
+      "pwl25_b0",
+      "pwl25_b20",
+      "pwl25_b25",
+      "pwl25_b33",
+      "pwl25_b40",
+      "pwl40_b0",
+      "pwl40_b20",
+      "pwl40_b25",
+      "pwl40_b33",
+      "pwl40_b40",
+      "sfu",
+      "d3_auto"
+    ],
+    [
+      "pwl25_b0",
+      "d3_auto",
+      "sfu",
+      "pwl40_b40",
+      "pwl40_b33",
+      "pwl40_b25",
+      "pwl40_b20",
+      "pwl40_b0",
+      "pwl25_b40",
+      "pwl25_b33",
+      "pwl25_b25",
+      "pwl25_b20"
+    ],
+    [
+      "pwl25_b25",
+      "pwl25_b33",
+      "pwl25_b40",
+      "pwl40_b0",
+      "pwl40_b20",
+      "pwl40_b25",
+      "pwl40_b33",
+      "pwl40_b40",
+      "sfu",
+      "d3_auto",
+      "pwl25_b0",
+      "pwl25_b20"
+    ]
+  ],
+  "forward_backward_measurement_order": [
+    [
+      "sfu",
+      "d3_auto",
+      "pwl25_b0",
+      "pwl25_b20",
+      "pwl25_b25",
+      "pwl25_b33",
+      "pwl25_b40",
+      "pwl40_b0",
+      "pwl40_b20",
+      "pwl40_b25",
+      "pwl40_b33",
+      "pwl40_b40"
+    ],
+    [
+      "sfu",
+      "pwl40_b40",
+      "pwl40_b33",
+      "pwl40_b25",
+      "pwl40_b20",
+      "pwl40_b0",
+      "pwl25_b40",
+      "pwl25_b33",
+      "pwl25_b25",
+      "pwl25_b20",
+      "pwl25_b0",
+      "d3_auto"
+    ],
+    [
+      "pwl25_b0",
+      "pwl25_b20",
+      "pwl25_b25",
+      "pwl25_b33",
+      "pwl25_b40",
+      "pwl40_b0",
+      "pwl40_b20",
+      "pwl40_b25",
+      "pwl40_b33",
+      "pwl40_b40",
+      "sfu",
+      "d3_auto"
+    ],
+    [
+      "pwl25_b0",
+      "d3_auto",
+      "sfu",
+      "pwl40_b40",
+      "pwl40_b33",
+      "pwl40_b25",
+      "pwl40_b20",
+      "pwl40_b0",
+      "pwl25_b40",
+      "pwl25_b33",
+      "pwl25_b25",
+      "pwl25_b20"
+    ],
+    [
+      "pwl25_b25",
+      "pwl25_b33",
+      "pwl25_b40",
+      "pwl40_b0",
+      "pwl40_b20",
+      "pwl40_b25",
+      "pwl40_b33",
+      "pwl40_b40",
+      "sfu",
+      "d3_auto",
+      "pwl25_b0",
+      "pwl25_b20"
+    ]
+  ],
+  "rows": [
+    {
+      "name": "sfu",
+      "backend": "d3",
+      "forward_frequency": 0,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.22346880435943603,
+      "forward_samples_ms": [
+        0.22571680545806885,
+        0.21956160068511962,
+        0.22346880435943603,
+        0.22365279197692872,
+        0.2228480100631714
+      ],
+      "forward_backward_ms": 0.7940032005310058,
+      "forward_backward_samples_ms": [
+        1.369480037689209,
+        0.8542927742004395,
+        0.7635839939117431,
+        0.7688240051269531,
+        0.7940032005310058
+      ],
+      "output_relative_l2": 0.0,
+      "output_relative_mae": 0.0,
+      "max_tensor_relative_l2": 0.0,
+      "max_tensor_relative_mae": 0.0,
+      "min_tensor_cosine": 0.9999998807907104
+    },
+    {
+      "name": "d3_auto",
+      "backend": "d3",
+      "forward_frequency": null,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.0,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.2244271993637085,
+      "forward_samples_ms": [
+        0.22620799541473388,
+        0.22523200511932373,
+        0.22382080554962158,
+        0.2244271993637085,
+        0.22403359413146973
+      ],
+      "forward_backward_ms": 0.771620798110962,
+      "forward_backward_samples_ms": [
+        1.3664527893066407,
+        0.771620798110962,
+        0.7616064071655273,
+        0.7688111782073974,
+        0.779315185546875
+      ],
+      "output_relative_l2": 0.00047095678746700287,
+      "output_relative_mae": 0.000122977900900878,
+      "max_tensor_relative_l2": 0.000813826103694737,
+      "max_tensor_relative_mae": 0.00023692692047916353,
+      "min_tensor_cosine": 0.9999997019767761
+    },
+    {
+      "name": "pwl25_b0",
+      "backend": "pwl2",
+      "forward_frequency": 16,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.25,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.22244639396667482,
+      "forward_samples_ms": [
+        0.22305760383605958,
+        0.22244639396667482,
+        0.22163839340209962,
+        0.22317440509796144,
+        0.2217616081237793
+      ],
+      "forward_backward_ms": 0.7727935791015625,
+      "forward_backward_samples_ms": [
+        1.3648575782775878,
+        0.7574624061584473,
+        0.9618464469909668,
+        0.7621071815490723,
+        0.7727935791015625
+      ],
+      "output_relative_l2": 0.001732058823108673,
+      "output_relative_mae": 0.0013655583607032895,
+      "max_tensor_relative_l2": 0.001732058823108673,
+      "max_tensor_relative_mae": 0.0013655583607032895,
+      "min_tensor_cosine": 0.9999985694885254
+    },
+    {
+      "name": "pwl25_b20",
+      "backend": "pwl2",
+      "forward_frequency": 16,
+      "backward_frequency": 20,
+      "nominal_forward_pwl_fraction": 0.25,
+      "nominal_backward_pwl_fraction": 0.2,
+      "forward_ms": 0.22230880260467528,
+      "forward_samples_ms": [
+        0.2279695987701416,
+        0.2226128101348877,
+        0.22230880260467528,
+        0.2213871955871582,
+        0.22125918865203859
+      ],
+      "forward_backward_ms": 0.7814239978790283,
+      "forward_backward_samples_ms": [
+        1.3617679595947265,
+        0.7711472034454345,
+        0.8272624015808105,
+        0.7814239978790283,
+        0.7807231903076172
+      ],
+      "output_relative_l2": 0.001732058823108673,
+      "output_relative_mae": 0.0013655583607032895,
+      "max_tensor_relative_l2": 0.001732058823108673,
+      "max_tensor_relative_mae": 0.0013655583607032895,
+      "min_tensor_cosine": 0.9999985694885254
+    },
+    {
+      "name": "pwl25_b25",
+      "backend": "pwl2",
+      "forward_frequency": 16,
+      "backward_frequency": 16,
+      "nominal_forward_pwl_fraction": 0.25,
+      "nominal_backward_pwl_fraction": 0.25,
+      "forward_ms": 0.22200479507446289,
+      "forward_samples_ms": [
+        0.224288010597229,
+        0.22158560752868653,
+        0.22192959785461425,
+        0.22200479507446289,
+        0.22259678840637206
+      ],
+      "forward_backward_ms": 0.8191887855529785,
+      "forward_backward_samples_ms": [
+        1.3730287551879883,
+        0.7982607841491699,
+        0.8191887855529785,
+        0.7820799827575684,
+        0.9409472465515136
+      ],
+      "output_relative_l2": 0.001732058823108673,
+      "output_relative_mae": 0.0013655583607032895,
+      "max_tensor_relative_l2": 0.001732058823108673,
+      "max_tensor_relative_mae": 0.0013655583607032895,
+      "min_tensor_cosine": 0.9999985694885254
+    },
+    {
+      "name": "pwl25_b33",
+      "backend": "pwl2",
+      "forward_frequency": 16,
+      "backward_frequency": 12,
+      "nominal_forward_pwl_fraction": 0.25,
+      "nominal_backward_pwl_fraction": 0.3333333333333333,
+      "forward_ms": 0.22236480712890624,
+      "forward_samples_ms": [
+        0.22399680614471434,
+        0.22236480712890624,
+        0.2218928098678589,
+        0.22317280769348144,
+        0.22120800018310546
+      ],
+      "forward_backward_ms": 0.7981696128845215,
+      "forward_backward_samples_ms": [
+        1.291102409362793,
+        2.0964128494262697,
+        0.7718143939971924,
+        0.7700111865997314,
+        0.7981696128845215
+      ],
+      "output_relative_l2": 0.001732058823108673,
+      "output_relative_mae": 0.0013655583607032895,
+      "max_tensor_relative_l2": 0.001732058823108673,
+      "max_tensor_relative_mae": 0.0013655583607032895,
+      "min_tensor_cosine": 0.9999985694885254
+    },
+    {
+      "name": "pwl25_b40",
+      "backend": "pwl2",
+      "forward_frequency": 16,
+      "backward_frequency": 10,
+      "nominal_forward_pwl_fraction": 0.25,
+      "nominal_backward_pwl_fraction": 0.4,
+      "forward_ms": 0.22275679111480712,
+      "forward_samples_ms": [
+        0.22275679111480712,
+        0.22351839542388915,
+        0.22259840965270997,
+        0.22353758811950683,
+        0.22191040515899657
+      ],
+      "forward_backward_ms": 0.7881840229034424,
+      "forward_backward_samples_ms": [
+        0.8545215606689454,
+        0.7881840229034424,
+        0.7716623783111572,
+        0.7620304107666016,
+        0.8433568000793457
+      ],
+      "output_relative_l2": 0.001732058823108673,
+      "output_relative_mae": 0.0013655583607032895,
+      "max_tensor_relative_l2": 0.001732058823108673,
+      "max_tensor_relative_mae": 0.0013655583607032895,
+      "min_tensor_cosine": 0.9999985694885254
+    },
+    {
+      "name": "pwl40_b0",
+      "backend": "pwl2",
+      "forward_frequency": 10,
+      "backward_frequency": 0,
+      "nominal_forward_pwl_fraction": 0.4,
+      "nominal_backward_pwl_fraction": 0.0,
+      "forward_ms": 0.2244640111923218,
+      "forward_samples_ms": [
+        0.2246864080429077,
+        0.22379679679870607,
+        0.2244640111923218,
+        0.22433118820190429,
+        0.2246687889099121
+      ],
+      "forward_backward_ms": 0.797208023071289,
+      "forward_backward_samples_ms": [
+        0.8228943824768067,
+        0.8546784400939942,
+        0.7898255825042725,
+        0.7584176063537598,
+        0.797208023071289
+      ],
+      "output_relative_l2": 0.001974908635020256,
+      "output_relative_mae": 0.0016927941469475627,
+      "max_tensor_relative_l2": 0.001974908635020256,
+      "max_tensor_relative_mae": 0.0016927941469475627,
+      "min_tensor_cosine": 0.9999980926513672
+    },
+    {
+      "name": "pwl40_b20",
+      "backend": "pwl2",
+      "forward_frequency": 10,
+      "backward_frequency": 20,
+      "nominal_forward_pwl_fraction": 0.4,
+      "nominal_backward_pwl_fraction": 0.2,
+      "forward_ms": 0.22436320781707764,
+      "forward_samples_ms": [
+        0.22436320781707764,
+        0.2240607976913452,
+        0.22598400115966796,
+        0.22294080257415771,
+        0.2250976085662842
+      ],
+      "forward_backward_ms": 0.8209759712219238,
+      "forward_backward_samples_ms": [
+        0.8209759712219238,
+        0.8693008422851562,
+        0.7738560199737549,
+        0.7596720218658447,
+        1.122652816772461
+      ],
+      "output_relative_l2": 0.001974908635020256,
+      "output_relative_mae": 0.0016927941469475627,
+      "max_tensor_relative_l2": 0.001974908635020256,
+      "max_tensor_relative_mae": 0.0016927941469475627,
+      "min_tensor_cosine": 0.9999980926513672
+    },
+    {
+      "name": "pwl40_b25",
+      "backend": "pwl2",
+      "forward_frequency": 10,
+      "backward_frequency": 16,
+      "nominal_forward_pwl_fraction": 0.4,
+      "nominal_backward_pwl_fraction": 0.25,
+      "forward_ms": 0.22380800247192384,
+      "forward_samples_ms": [
+        0.2246880054473877,
+        0.22380800247192384,
+        0.2247744083404541,
+        0.223801589012146,
+        0.22380321025848388
+      ],
+      "forward_backward_ms": 0.8140576362609864,
+      "forward_backward_samples_ms": [
+        0.8140576362609864,
+        0.8239600181579589,
+        0.7726016044616699,
+        0.756931209564209,
+        0.8244832038879395
+      ],
+      "output_relative_l2": 0.001974908635020256,
+      "output_relative_mae": 0.0016927941469475627,
+      "max_tensor_relative_l2": 0.001974908635020256,
+      "max_tensor_relative_mae": 0.0016927941469475627,
+      "min_tensor_cosine": 0.9999980926513672
+    },
+    {
+      "name": "pwl40_b33",
+      "backend": "pwl2",
+      "forward_frequency": 10,
+      "backward_frequency": 12,
+      "nominal_forward_pwl_fraction": 0.4,
+      "nominal_backward_pwl_fraction": 0.3333333333333333,
+      "forward_ms": 0.22410240173339843,
+      "forward_samples_ms": [
+        0.22410240173339843,
+        0.2236464023590088,
+        0.22556960582733154,
+        0.22347040176391603,
+        0.22416958808898926
+      ],
+      "forward_backward_ms": 0.8477680206298828,
+      "forward_backward_samples_ms": [
+        0.9151760101318359,
+        0.8477680206298828,
+        0.76669921875,
+        0.7662479877471924,
+        0.9091919898986817
+      ],
+      "output_relative_l2": 0.001974908635020256,
+      "output_relative_mae": 0.0016927941469475627,
+      "max_tensor_relative_l2": 0.001974908635020256,
+      "max_tensor_relative_mae": 0.0016927941469475627,
+      "min_tensor_cosine": 0.9999980926513672
+    },
+    {
+      "name": "pwl40_b40",
+      "backend": "pwl2",
+      "forward_frequency": 10,
+      "backward_frequency": 10,
+      "nominal_forward_pwl_fraction": 0.4,
+      "nominal_backward_pwl_fraction": 0.4,
+      "forward_ms": 0.2229935884475708,
+      "forward_samples_ms": [
+        0.21919519901275636,
+        0.22009599208831787,
+        0.2229935884475708,
+        0.2236272096633911,
+        0.22363359928131105
+      ],
+      "forward_backward_ms": 0.8060303688049316,
+      "forward_backward_samples_ms": [
+        0.8891792297363281,
+        0.8890048027038574,
+        0.7638383865356445,
+        0.7583263874053955,
+        0.8060303688049316
+      ],
+      "output_relative_l2": 0.001974908635020256,
+      "output_relative_mae": 0.0016927941469475627,
+      "max_tensor_relative_l2": 0.001974908635020256,
+      "max_tensor_relative_mae": 0.0016927941469475627,
+      "min_tensor_cosine": 0.9999980926513672
+    }
+  ]
+}

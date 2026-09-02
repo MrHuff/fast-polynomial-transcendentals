@@ -1,0 +1,57 @@
+{
+  "gpu": "NVIDIA GB200",
+  "requested_sm_clock_mhz": 1300,
+  "observed_sm_clock_mhz": 1305,
+  "model": "Llama 8B",
+  "sequence_length": 4096,
+  "local_batch_size": 1,
+  "steps": 80,
+  "steady_state_first_step": 20,
+  "candidate": {
+    "backend": "d2_safe",
+    "nominal_forward_emulation_fraction": 0.3333333333333333,
+    "nominal_backward_emulation_fraction": 0.125
+  },
+  "orders": [
+    {
+      "order": ["sfu_exp2", "d2_safe_33", "d2_safe_33_b12p5"],
+      "sfu_mean_tokens_per_second": 14769.738,
+      "forward_only_mean_tokens_per_second": 14675.082,
+      "forward_backward_mean_tokens_per_second": 14627.967,
+      "forward_only_over_sfu_mean_ratio": 0.9935912201,
+      "forward_backward_over_sfu_mean_ratio": 0.9904012515,
+      "forward_backward_over_forward_only_mean_ratio": 0.9967894558,
+      "sfu_median_tokens_per_second": 14780.0,
+      "forward_only_median_tokens_per_second": 14685.0,
+      "forward_backward_median_tokens_per_second": 14669.0,
+      "forward_only_over_sfu_median_ratio": 0.9935723951,
+      "forward_backward_over_sfu_median_ratio": 0.9924898512,
+      "forward_backward_over_forward_only_median_ratio": 0.9989104528,
+      "candidate_final_loss_delta_vs_sfu": -0.32211
+    },
+    {
+      "order": ["d2_safe_33_b12p5", "d2_safe_33", "sfu_exp2"],
+      "sfu_mean_tokens_per_second": 14545.934,
+      "forward_only_mean_tokens_per_second": 14615.918,
+      "forward_backward_mean_tokens_per_second": 14775.279,
+      "forward_only_over_sfu_mean_ratio": 1.0048112414,
+      "forward_backward_over_sfu_mean_ratio": 1.0157669490,
+      "forward_backward_over_forward_only_mean_ratio": 1.0109032495,
+      "sfu_median_tokens_per_second": 14616.0,
+      "forward_only_median_tokens_per_second": 14648.0,
+      "forward_backward_median_tokens_per_second": 14781.0,
+      "forward_only_over_sfu_median_ratio": 1.0021893815,
+      "forward_backward_over_sfu_median_ratio": 1.0112889984,
+      "forward_backward_over_forward_only_median_ratio": 1.0090797378,
+      "candidate_final_loss_delta_vs_sfu": -0.05026
+    }
+  ],
+  "geometric_mean_forward_only_over_sfu_ratio": 0.9991854819,
+  "geometric_mean_forward_backward_over_sfu_ratio": 1.0030039170,
+  "geometric_mean_backward_increment_ratio": 1.0038215478,
+  "geometric_median_forward_only_over_sfu_ratio": 0.9978715870,
+  "geometric_median_forward_backward_over_sfu_ratio": 1.0018453311,
+  "geometric_median_backward_increment_ratio": 1.0039822199,
+  "measurement_note": "Opposite process orders expose order drift larger than the candidate effect. Geometric aggregation cancels first-order multiplicative order bias but does not make the sub-percent whole-model result statistically decisive.",
+  "status": "finite_through_step_80"
+}

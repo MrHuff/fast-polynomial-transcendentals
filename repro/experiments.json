@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/MrHuff/fast-polynomial-transcendentals",
+  "external_source_pins": {
+    "flash-attention": "38afdedda24b0bf26e6904d3bed7807c19a6906e"
+  },
+  "legacy_source": {
+    "root_repository": "graphcore-research/low-precision-functions",
+    "root_baseline": "cbe2fc03be4b454563f4617286e867db06f53bbb",
+    "low_bits_training_current_pin": "f4cef431962f1863d63ff7b605c266a7bf5d2833",
+    "open_weight_reported_pin": "393b69e2993ef00c812dfc87ac5f93c146159f45",
+    "b4_artifact_pin": "89694ba4e53300d71fad5672f3a15a5f533317b5"
+  },
+  "status_definitions": {
+    "runnable": "The checked-in command is self-contained once its documented public dependencies and hardware are supplied.",
+    "hardware-gated": "The portable command is present but requires the named accelerator stack.",
+    "historical-only": "The materialized evidence is retained, but the original execution state is incomplete and no exact rerun is claimed."
+  },
+  "experiments": [
+    {
+      "id": "function-fit-comparison",
+      "status": "runnable",
+      "command": ["python", "autonumerics_zero/spline_ops/generate_sollya_structs_bf16.py"],
+      "artifact": "autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json"
+    },
+    {
+      "id": "b1-b4-component-timing",
+      "status": "hardware-gated",
+      "hardware": "NVIDIA GB200/SM100",
+      "command": ["python", "scripts/benchmark_components.py"],
+      "artifact": "evidence/report-data/b1_b4_100_iteration_phase_probes_gb200.json",
+      "legacy_entrypoint": "low-bits-training/scripts/benchmark_b1_b4_phase_probes.py"
+    },
+    {
+      "id": "b1-b4-complete-model-100-step",
+      "status": "historical-only",
+      "command": [],
+      "artifacts": [
+        "evidence/report-data/b1_b4_full_model_100step_gb200.json",
+        "evidence/report-data/b4_27a4b_local_100step_gb200.json"
+      ],
+      "reason": "The B1-B3 invocation was reconstructed and the B4 artifact names an uncommitted distributed-harness worktree. The internal training framework is intentionally not copied."
+    },
+    {
+      "id": "open-weight-evaluation",
+      "status": "hardware-gated",
+      "hardware": "CUDA GPU plus model-specific memory",
+      "command": ["python", "scripts/run_open_weight_suite.py", "--config", "configs/open_weight_paper.json", "--dry-run"],
+      "artifact": "evidence/report-data/sollya_eval_results.csv",
+      "protocol": "evidence/report-data/open_weight_eval_protocol.json",
+      "legacy_entrypoint": "low-bits-training@393b69e/scripts/run_hf_poly_eval_suite.py"
+    },
+    {
+      "id": "paired-pretraining-plot",
+      "status": "runnable",
+      "command": ["python", "evidence/pretraining/plot_paired_loss.py"],
+      "artifact": "evidence/report-data/b1_b4_paired_loss_curves.csv",
+      "provenance": "evidence/report-data/b1_b4_paired_loss_curves.provenance.json"
+    },
+    {
+      "id": "paired-pretraining-full-rerun",
+      "status": "historical-only",
+      "command": [],
+      "reason": "Original launch manifests, initialization/data-order proof, datasets, checkpoints, and complete runtime locks are unavailable."
+    },
+    {
+      "id": "fractional-exp2-fit",
+      "status": "runnable",
+      "command": ["python", "autonumerics_zero/evolution/fit_exp2_softmax.py", "--samples", "1000001", "--json-out", "outputs/b5_exp2_softmax_constrained_fits.json"],
+      "artifact": "evidence/report-data/b5_exp2_softmax_constrained_fits.json"
+    },
+    {
+      "id": "fractional-exp2-isolated",
+      "status": "hardware-gated",
+      "hardware": "NVIDIA GB200/SM100",
+      "command": ["python", "autonumerics_zero/experiments/benchmark_exp2_pwl2.py", "--json-out", "outputs/exp2_pwl2_isolated.json"],
+      "artifact": "evidence/report-data/exp2_pwl2_isolated_gb200.json"
+    },
+    {
+      "id": "fractional-exp2-integrated-fa4",
+      "status": "hardware-gated",
+      "hardware": "NVIDIA GB200/SM100",
+      "command": ["python", "scripts/benchmark_fa4_exp2_mix.py", "--json-out", "outputs/exp2_fa4.json"],
+      "artifact": "evidence/report-data/b5_exp2_apples_to_apples_d3_pwl2_d2_gb200.json"
+    },
+    {
+      "id": "rope-fit-and-smoke",
+      "status": "hardware-gated",
+      "command": ["python", "-m", "sfu_repro.rope.benchmark_cuda_fused_rope", "--output", "outputs/rope.json"],
+      "reason": "The driver is portable, but the paper's original raw integrated timing record was not retained."
+    }
+  ]
+}

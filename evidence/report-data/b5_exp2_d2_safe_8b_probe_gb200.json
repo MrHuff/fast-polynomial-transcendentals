@@ -1,0 +1,41 @@
+{
+  "gpu": "NVIDIA GB200",
+  "requested_sm_clock_mhz": 1300,
+  "observed_sm_clock_mhz": 1305,
+  "model": "Llama 8B",
+  "sequence_length": 4096,
+  "local_batch_size": 1,
+  "steps": 80,
+  "steady_state_first_step": 20,
+  "candidate": {
+    "backend": "d2_safe",
+    "forward_emulation_fraction": 0.3333333333333333,
+    "backward_emulation_fraction": 0.0
+  },
+  "orders": [
+    {
+      "order": ["sfu_exp2", "d3_current_40", "d2_safe_33"],
+      "sfu_mean_tokens_per_second": 14871.871,
+      "candidate_mean_tokens_per_second": 14817.323,
+      "mean_throughput_ratio": 0.996332136,
+      "sfu_median_tokens_per_second": 14870.0,
+      "candidate_median_tokens_per_second": 14838.0,
+      "median_throughput_ratio": 0.9978480161,
+      "final_loss_delta": 0.03576
+    },
+    {
+      "order": ["d2_safe_33", "d3_current_40", "sfu_exp2"],
+      "sfu_mean_tokens_per_second": 14836.194,
+      "candidate_mean_tokens_per_second": 14831.871,
+      "mean_throughput_ratio": 0.999708618,
+      "sfu_median_tokens_per_second": 14839.0,
+      "candidate_median_tokens_per_second": 14827.0,
+      "median_throughput_ratio": 0.9991913202,
+      "final_loss_delta": 0.03772
+    }
+  ],
+  "geometric_mean_throughput_ratio": 0.9980189491,
+  "geometric_median_throughput_ratio": 0.9985194423,
+  "measurement_note": "At a requested 1800 MHz, sustained 8B training was power-limited and observed clocks varied from roughly 1340 to 1800 MHz. The 1300 MHz control held 1305 MHz throughout active samples.",
+  "status": "finite_through_step_80"
+}

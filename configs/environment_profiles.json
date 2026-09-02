@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "profiles": {
+    "paper_component_gb200": {
+      "gpu": "NVIDIA GB200",
+      "compute_capability": "10.0",
+      "cuda": "13.0",
+      "torch": "2.9.0a0+145a3a7bda.nv25.10",
+      "flash_attention_commit": "38afdedda24b0bf26e6904d3bed7807c19a6906e",
+      "dtype": "bfloat16",
+      "status": "runtime-attested by the retained B1-B4 component artifact"
+    },
+    "portable_analysis": {
+      "python": ">=3.11",
+      "requirements": ["numpy", "pandas", "matplotlib"],
+      "status": "version ranges are install guidance, not a historical environment lock"
+    },
+    "open_weight": {
+      "requirements": ["torch", "transformers", "lm-eval", "spline_ops"],
+      "status": "historical runtime versions were not retained; model revisions and source-derived protocol are in configs/open_weight_paper.json and evidence/report-data/open_weight_eval_protocol.json"
+    }
+  }
+}

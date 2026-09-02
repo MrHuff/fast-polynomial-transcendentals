@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "generated_utc": "2026-07-23",
+  "experiment": "B4 DeepSeek-V3 27A4B production training throughput",
+  "model": {
+    "name": "DeepSeek-V3",
+    "repository_flavor": "27A4B",
+    "interpretation": "approximately 27B total parameters and 4B active parameters per token"
+  },
+  "topology": {
+    "accelerators": "32 NVIDIA GB200 GPUs",
+    "expert_parallel_degree": 8,
+    "sequence_length": 4096,
+    "global_batch_size": 256
+  },
+  "wandb": {
+    "project": "graphcore/poly_stuff",
+    "native_run_id": "pmysecb3",
+    "native_run_name": "poly300b-b4-0713-r2-b4-27a4b-native:rank_0",
+    "candidate_run_id": "feitgnfz",
+    "candidate_run_name": "poly300b-b4-0713-r2-b4-27a4b-expert-d3:rank_0"
+  },
+  "candidate_scope": {
+    "config": "low-bits-training/train_configs/deepseek_v3_27a4b_moe_case4_expert_spline_olmo_300k.toml",
+    "operation": "D3 polynomial SiLU in dense/shared MLPs and routed experts",
+    "status": "crashed after 58.2B tokens",
+    "corrected_routed_expert_only_config": "low-bits-training/train_configs/deepseek_v3_27a4b_moe_case4_expert_only_spline_olmo_300k.toml",
+    "corrected_run_status": "no W&B training trajectory available at report cutoff"
+  },
+  "measurement": {
+    "history_keys": [
+      "_timestamp",
+      "n_tokens_seen",
+      "throughput(tps)"
+    ],
+    "startup_exclusion_tokens_per_fragment": 100000000,
+    "aggregation": "median rank-zero throughput in five-minute wall-clock bins",
+    "pairing": "retain only wall-clock bins present in both runs",
+    "overlap_bins": 2114,
+    "overlap_hours": 176.1666666667,
+    "common_token_horizon": 58211696640
+  },
+  "results": {
+    "native_median_tokens_per_second_per_gpu": 3024.368552422785,
+    "candidate_median_tokens_per_second_per_gpu": 2929.667582472768,
+    "ratio_of_medians_candidate_over_native": 0.9686873579365343,
+    "median_paired_ratio_candidate_over_native": 0.9691239505827824,
+    "bootstrap_95_percent_interval_for_median_paired_ratio": [
+      0.9675889982956188,
+      0.9705170086883728
+    ]
+  }
+}

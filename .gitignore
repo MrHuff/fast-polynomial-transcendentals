@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*.so
+*.o
+*.a
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.venv-*/
+build/
+dist/
+outputs/
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+
+# Credentials and local provider state must never enter the repository.
+.env
+.env.*
+!.env.example
+*credentials*
+*token*

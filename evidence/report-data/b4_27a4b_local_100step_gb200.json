@@ -1,0 +1,83 @@
+{
+  "experiment": "B4 DeepSeek-V3 27A4B full-model 100-step local comparison",
+  "date_utc": "2026-07-23",
+  "hardware": {
+    "gpu": "NVIDIA GB200",
+    "gpu_count": 4,
+    "expert_parallel_degree": 4,
+    "data_parallel_shard_degree": 4,
+    "peak_memory_gib": {
+      "native": 131.94,
+      "expert_only_d3_current": 131.68
+    }
+  },
+  "model": {
+    "repository_flavor": "27A4B",
+    "total_parameters": 27037478400,
+    "active_parameters": 4459015680,
+    "sequence_length": 4096,
+    "local_batch_size": 1,
+    "global_batch_size": 4
+  },
+  "scope": {
+    "native": "Native routed-expert SiLU",
+    "candidate": "D3 current polynomial in routed experts only; router, dense MLPs, and shared MLPs remain native",
+    "native_config": "train_configs/deepseek_v3_27a4b_moe_case4_native_olmo_300k.toml",
+    "candidate_config": "train_configs/deepseek_v3_27a4b_moe_case4_expert_only_spline_olmo_300k.toml"
+  },
+  "protocol": {
+    "steps": 100,
+    "reported_window": "steps 20-100",
+    "compile": true,
+    "phase_timing": true,
+    "dataset": "local c4_test fixture with hf-flaky-splitting",
+    "checkpointing": false,
+    "wandb": false,
+    "command": "python3 scripts/run_poly_100step_local.py --models moe27a4b --use-cases b4 --variants native,expert_only_d3_current --steps 100 --log-freq 1 --phase-timing --enable-compile --out-dir outputs/poly_100step_27a4b_full_model --force"
+  },
+  "results_steps_20_100": {
+    "native": {
+      "mean_tokens_per_s_per_gpu": 1429.463,
+      "median_tokens_per_s_per_gpu": 1405.0,
+      "median_forward_ms": 1154.819,
+      "median_backward_ms": 1672.750,
+      "median_post_backward_ms": 76.853,
+      "median_gpu_step_ms": 2917.946,
+      "final_loss": 2.87165
+    },
+    "expert_only_d3_current": {
+      "mean_tokens_per_s_per_gpu": 1494.451,
+      "median_tokens_per_s_per_gpu": 1518.0,
+      "median_forward_ms": 1062.118,
+      "median_backward_ms": 1553.712,
+      "median_post_backward_ms": 75.132,
+      "median_gpu_step_ms": 2700.987,
+      "final_loss": 2.87386
+    },
+    "speedup_ratio_of_medians": {
+      "forward": 1.0873,
+      "backward": 1.0766,
+      "post_backward": 1.0229,
+      "gpu_step": 1.0803,
+      "tokens_per_s": 1.0804
+    },
+    "paired_gpu_step_ratio_median": 1.0684,
+    "paired_gpu_step_ratio_bootstrap_95_percent": [1.0070, 1.0883],
+    "mean_candidate_minus_native_loss": -0.00562,
+    "final_candidate_minus_native_loss": 0.00221
+  },
+  "best_contiguous_20_step_window": {
+    "steps": "61-80",
+    "paired_gpu_step_speedup_median": 1.0980,
+    "paired_tokens_per_s_speedup_median": 1.0979
+  },
+  "logs": {
+    "native_sha256": "7b72776e3cc44611f785f57a78cdbea4f721458c813fb8092fb7dc0d65e85a4f",
+    "candidate_sha256": "8f01835d70869b77d00075593240fd5529537437a85157331667947a0199338c"
+  },
+  "source_commits": {
+    "root": "f0d890498ec338ff5a1af682d1b73cc9ba83a416",
+    "low_bits_training": "89694ba4e53300d71fad5672f3a15a5f533317b5",
+    "note": "The distributed 27A4B harness changes were present in the local working tree during measurement."
+  }
+}

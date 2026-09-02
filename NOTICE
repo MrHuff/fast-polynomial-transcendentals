@@ -1,0 +1,22 @@
+Fast Polynomial Transcendentals for LLMs
+
+This product includes software adapted from the low-bits-training research
+codebase developed by Graphcore Ltd. and distributed under the Apache License,
+Version 2.0. The adapted files have been modified to remove dependencies on
+the original training framework, cluster launchers, organization-specific
+configuration, and repository layout, and to provide standalone activation,
+attention, model-patching, and benchmarking interfaces.
+
+Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+
+This product also includes selected AutoNumerics fitting, benchmark, and CUDA
+kernel files from the low-precision-functions research codebase. The selected
+subtree retains a copy of its source license at autonumerics_zero/LICENSE.
+
+The patched FlashAttention-4 Git submodule and all other third-party
+dependencies are separate works. Their copyright notices, licenses, and terms
+apply independently. This repository does not redistribute model weights,
+tokenizers, or evaluation datasets; their provider terms are not modified by
+this notice.
+
+This NOTICE is informational and does not modify the terms of the LICENSE.

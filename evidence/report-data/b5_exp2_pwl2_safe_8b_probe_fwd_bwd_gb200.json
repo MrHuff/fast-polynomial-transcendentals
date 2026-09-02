@@ -1,0 +1,38 @@
+{
+  "gpu": "NVIDIA GB200",
+  "requested_sm_clock_mhz": 1300,
+  "observed_sm_clock_mhz": 1305,
+  "model": "Llama 8B",
+  "sequence_length": 4096,
+  "batch_size": 1,
+  "steps": 80,
+  "routing": {
+    "forward_fraction": 0.3333333333333333,
+    "backward_fraction": 0.125
+  },
+  "candidate_backend": "pwl2_safe_f16",
+  "opposite_order_fp16": [
+    {
+      "order": "sfu_then_pwl2_safe_f16",
+      "sfu_steady_tps_mean": 14897.923,
+      "sfu_steady_tps_median": 14920.0,
+      "pwl2_safe_f16_steady_tps_mean": 14935.0,
+      "pwl2_safe_f16_steady_tps_median": 14944.0,
+      "ratio": 1.0024887361815469,
+      "sfu_final_loss": 2.96597,
+      "pwl2_safe_f16_final_loss": 2.88418
+    },
+    {
+      "order": "pwl2_safe_f16_then_sfu",
+      "sfu_steady_tps_mean": 14924.154,
+      "sfu_steady_tps_median": 14934.0,
+      "pwl2_safe_f16_steady_tps_mean": 14909.462,
+      "pwl2_safe_f16_steady_tps_median": 14916.0,
+      "ratio": 0.9990155555886115,
+      "sfu_final_loss": 3.02407,
+      "pwl2_safe_f16_final_loss": 2.90509
+    }
+  ],
+  "fp16_geometric_mean_ratio": 1.000750639144304,
+  "status": "finite"
+}

@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "evidence_class": "historical_source_derived",
+  "runtime_config_attested": false,
+  "description": "Source-derived throughput protocol and quality-launch arguments for the open-weight rows in Table 5.",
+  "binding": {
+    "root_commit": "cdc11310a522b2b3ac7230fbba0efc7e7022e20d",
+    "low_bits_training_commit": "393b69e2993ef00c812dfc87ac5f93c146159f45",
+    "campaign_name_prefix": "poly-eval-sollya-0728-015208-r6",
+    "result_artifact": "report/data/sollya_eval_results.csv",
+    "result_artifact_sha256": "1435e2413942760487b76b905f530f985fb2a97066813bdae023b6a2b61680d7",
+    "basis": "The root commit pins the historical submodule commit, and the materialized result rows carry the matching July 28 campaign names. The result CSV does not itself record the source commit or sequence lengths."
+  },
+  "sources": [
+    {
+      "path": "scripts/nvl72/run_hf_poly_eval_job.sh",
+      "git_blob": "820f64a30e0d0db9c3d601ed8d40f29ba327dd68",
+      "line_regions": "49, 51-68, 95-130, 206-234"
+    },
+    {
+      "path": "scripts/nvl72/submit_hf_poly_eval_jobs.sh",
+      "git_blob": "c4c8d6a82470f00eea4a748eea09c5f71a64f45f",
+      "line_regions": "67-77, 149-164, 242-260"
+    },
+    {
+      "path": "scripts/run_hf_poly_eval_suite.py",
+      "git_blob": "18b9eafaf011a85cce17293cb4dbf6063f439c2f",
+      "line_regions": "1090-1099"
+    },
+    {
+      "path": "scripts/benchmark_hf_poly_inference.py",
+      "git_blob": "29cf43d0482d76a14bc048e1019bcb2155a0915c",
+      "line_regions": "1766-1815, 2067-2078"
+    }
+  ],
+  "throughput_defaults": {
+    "batch_size": 1,
+    "prefill_measurements": 20,
+    "prefill_warmups": 5,
+    "decode_steps": 64,
+    "decode_measurements": 10,
+    "decode_warmups": 2,
+    "dtype": "bf16"
+  },
+  "quality_evaluation": {
+    "seq_len_argument_consumed_by_lm_eval": false,
+    "explanation": "The launcher passes the recorded value through --seq-len, where it sizes synthetic tokens and appears in output metadata. The historical run_lm_eval call does not consume it, so it is not a quality-context limit."
+  },
+  "models": [
+    {
+      "paper_model": "Qwen2.5 7B",
+      "case_key": "qwen2p5_7b",
+      "run_id": "hfpef3f74d0a1dd2",
+      "run_name": "poly-eval-sollya-0728-015208-r6-q25-7b",
+      "intervention": "D4 dense SwiGLU",
+      "throughput_sequence_length": 2048,
+      "unused_quality_seq_len_argument": 2048
+    },
+    {
+      "paper_model": "Qwen3 30B-A3B",
+      "case_key": "qwen3_30b_a3b_base",
+      "run_id": "hfpeaaa83abc8b64",
+      "run_name": "poly-eval-sollya-0728-015208-r6-q3-30ba3b",
+      "intervention": "D4 expert SwiGLU",
+      "throughput_sequence_length": 512,
+      "unused_quality_seq_len_argument": 2048
+    },
+    {
+      "paper_model": "GLM-4.7 Flash",
+      "case_key": "glm4p7_flash",
+      "run_id": "hfpeaef5f8c301e5",
+      "run_name": "poly-eval-sollya-0728-015208-r6-glm47-flash",
+      "intervention": "D4 expert SwiGLU + D4 router sigmoid",
+      "throughput_sequence_length": 512,
+      "unused_quality_seq_len_argument": 2048
+    },
+    {
+      "paper_model": "GPT-OSS 120B",
+      "case_key": "gpt_oss_120b",
+      "run_id": "hfpe3f667efc445b",
+      "run_name": "poly-eval-sollya-0728-015208-r6-gptoss-120b",
+      "intervention": "D4 expert SiLU epilogue",
+      "throughput_sequence_length": 512,
+      "unused_quality_seq_len_argument": 2048
+    },
+    {
+      "paper_model": "Kimi Linear 48B-A3B",
+      "case_key": "kimi_linear_48b_a3b_base",
+      "run_id": "hfped85f956919e6",
+      "run_name": "poly-eval-sollya-0728-015208-r6-kimi-linear-48ba3b",
+      "intervention": "D4 expert SwiGLU + D4 router sigmoid",
+      "throughput_sequence_length": 512,
+      "unused_quality_seq_len_argument": 8192
+    }
+  ]
+}

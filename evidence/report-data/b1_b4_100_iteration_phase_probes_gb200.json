@@ -1,0 +1,532 @@
+{
+  "schema_version": 1,
+  "git_revision": "f0d890498ec338ff5a1af682d1b73cc9ba83a416",
+  "git_worktree_dirty": true,
+  "device": {
+    "name": "NVIDIA GB200",
+    "capability": [
+      10,
+      0
+    ],
+    "total_memory_bytes": 197897617408,
+    "torch_version": "2.9.0a0+145a3a7bda.nv25.10",
+    "cuda_version": "13.0"
+  },
+  "measurement": {
+    "dtype": "bfloat16",
+    "warmup_per_variant": 25,
+    "iterations_per_round": 100,
+    "rounds": 5,
+    "timed_iterations_per_variant": 500,
+    "summary_statistic": "median of per-round means",
+    "order_policy": "rotate native/polynomial order each round"
+  },
+  "rows": [
+    {
+      "case": "B1",
+      "operation": "SiLU evaluator",
+      "scope": "one-kernel BF16 activation",
+      "polynomial": "D3 current fit",
+      "shape": {
+        "elements": 58720256
+      },
+      "forward": {
+        "samples_us": {
+          "native": [
+            41.24671936035156,
+            41.23936176300049,
+            41.23040199279785,
+            41.24512195587158,
+            41.27903938293457
+          ],
+          "polynomial": [
+            39.12192106246948,
+            39.05951976776123,
+            39.08479928970337,
+            39.0393590927124,
+            39.09600019454956
+          ]
+        },
+        "median_us": {
+          "native": 41.24512195587158,
+          "polynomial": 39.08479928970337
+        },
+        "measurement_order": [
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ]
+        ],
+        "speedup": 1.05527270717589
+      },
+      "backward": {
+        "samples_us": {
+          "native": [
+            56.014719009399414,
+            56.14528179168701,
+            55.83871841430664,
+            56.310720443725586,
+            55.92927932739258
+          ],
+          "polynomial": [
+            55.620479583740234,
+            55.62464237213135,
+            55.654401779174805,
+            55.67359924316406,
+            55.483198165893555
+          ]
+        },
+        "median_us": {
+          "native": 56.014719009399414,
+          "polynomial": 55.62464237213135
+        },
+        "measurement_order": [
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ]
+        ],
+        "speedup": 1.0070126587899377
+      },
+      "numerics": {
+        "forward": {
+          "max_abs": 0.0625,
+          "mean_abs": 0.0025670004542917013,
+          "relative_mae": 0.006436120253056288,
+          "cosine": 0.9999809861183167
+        },
+        "backward": {
+          "max_abs": 0.09375,
+          "mean_abs": 0.006094470154494047,
+          "relative_mae": 0.014929370023310184,
+          "cosine": 0.9999021291732788
+        }
+      }
+    },
+    {
+      "case": "B2",
+      "operation": "tanh softcap inside FA4",
+      "scope": "complete causal GQA attention",
+      "polynomial": "D4 current fit, analytical derivative",
+      "shape": {
+        "batch": 1,
+        "query_heads": 32,
+        "kv_heads": 8,
+        "sequence_length": 4096,
+        "head_dim": 128
+      },
+      "configuration": {
+        "softcap": 30.0
+      },
+      "forward": {
+        "samples_us": {
+          "native": [
+            632.6739120483398,
+            635.4662322998047,
+            630.5769729614258,
+            631.4262390136719,
+            630.852165222168
+          ],
+          "polynomial": [
+            306.90975189208984,
+            306.3920021057129,
+            307.8223991394043,
+            307.5472068786621,
+            307.7916717529297
+          ]
+        },
+        "median_us": {
+          "native": 631.4262390136719,
+          "polynomial": 307.5472068786621
+        },
+        "measurement_order": [
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ]
+        ],
+        "speedup": 2.053103474494539
+      },
+      "backward": {
+        "samples_us": {
+          "native": [
+            986.5692901611328,
+            987.0738983154297,
+            985.4793548583984,
+            985.0447845458984,
+            985.2381134033203
+          ],
+          "polynomial": [
+            942.0323181152344,
+            941.9423675537109,
+            941.6000366210938,
+            941.8035125732422,
+            942.0326232910156
+          ]
+        },
+        "median_us": {
+          "native": 985.4793548583984,
+          "polynomial": 941.9423675537109
+        },
+        "measurement_order": [
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ]
+        ],
+        "speedup": 1.0462204364134888
+      },
+      "numerics": {
+        "tensors": {
+          "output": {
+            "max_abs": 0.1328125,
+            "mean_abs": 0.0027725850231945515,
+            "relative_mae": 0.06971252709627151,
+            "cosine": 0.9990112781524658
+          },
+          "dq": {
+            "max_abs": 0.25,
+            "mean_abs": 0.004000719636678696,
+            "relative_mae": 0.10620031505823135,
+            "cosine": 0.9993714094161987
+          },
+          "dk": {
+            "max_abs": 0.53125,
+            "mean_abs": 0.006473260931670666,
+            "relative_mae": 0.10694102942943573,
+            "cosine": 0.9993732571601868
+          },
+          "dv": {
+            "max_abs": 0.28125,
+            "mean_abs": 0.00440856721252203,
+            "relative_mae": 0.07110995054244995,
+            "cosine": 0.9990094900131226
+          }
+        },
+        "max_tensor_relative_mae": 0.10694102942943573,
+        "min_tensor_cosine": 0.9990094900131226
+      }
+    },
+    {
+      "case": "B3",
+      "operation": "direct D3/D4 FlashSigmoid inside FA4",
+      "scope": "complete causal GQA attention",
+      "polynomial": "direct D3 forward and coupled D4 derivative",
+      "shape": {
+        "batch": 1,
+        "query_heads": 32,
+        "kv_heads": 8,
+        "sequence_length": 4096,
+        "head_dim": 128
+      },
+      "configuration": {
+        "sigmoid_bias": "-log(sequence_length)",
+        "sigmoid_qk_norm": true
+      },
+      "forward": {
+        "samples_us": {
+          "native": [
+            395.2640151977539,
+            394.90238189697266,
+            395.29537200927734,
+            395.013427734375,
+            395.08129119873047
+          ],
+          "polynomial": [
+            367.9734420776367,
+            366.2227249145508,
+            368.0192184448242,
+            367.2681427001953,
+            368.21887969970703
+          ]
+        },
+        "median_us": {
+          "native": 395.08129119873047,
+          "polynomial": 367.9734420776367
+        },
+        "measurement_order": [
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ]
+        ],
+        "speedup": 1.0736679499695372
+      },
+      "backward": {
+        "samples_us": {
+          "native": [
+            655.8370971679688,
+            656.3356781005859,
+            656.6982269287109,
+            656.4704132080078,
+            656.435546875
+          ],
+          "polynomial": [
+            655.6777954101562,
+            655.8681488037109,
+            655.9209442138672,
+            655.2063751220703,
+            656.1673736572266
+          ]
+        },
+        "median_us": {
+          "native": 656.435546875,
+          "polynomial": 655.8681488037109
+        },
+        "measurement_order": [
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ]
+        ],
+        "speedup": 1.00086510996505
+      },
+      "numerics": {
+        "tensors": {
+          "output": {
+            "max_abs": 0.0546875,
+            "mean_abs": 0.00032864720560610294,
+            "relative_mae": 0.01462965365499258,
+            "cosine": 0.9998733401298523
+          },
+          "dq": {
+            "max_abs": 0.00323486328125,
+            "mean_abs": 2.9577171517303213e-05,
+            "relative_mae": 0.015210636891424656,
+            "cosine": 0.9998697638511658
+          },
+          "dk": {
+            "max_abs": 0.003173828125,
+            "mean_abs": 6.025260154274292e-05,
+            "relative_mae": 0.015436377376317978,
+            "cosine": 0.9998695850372314
+          },
+          "dv": {
+            "max_abs": 0.060546875,
+            "mean_abs": 0.000671762740239501,
+            "relative_mae": 0.015281209722161293,
+            "cosine": 0.99986732006073
+          }
+        },
+        "max_tensor_relative_mae": 0.015436377376317978,
+        "min_tensor_cosine": 0.99986732006073
+      }
+    },
+    {
+      "case": "B4",
+      "operation": "routed-expert SwiGLU activation",
+      "scope": "same-layout one-kernel BF16 native SFU versus polynomial",
+      "polynomial": "D3 current fit",
+      "shape": {
+        "rows": 24576,
+        "hidden_size": 1280
+      },
+      "forward": {
+        "samples_us": {
+          "native": [
+            29.12735939025879,
+            29.09696102142334,
+            29.01952028274536,
+            28.93440008163452,
+            29.047040939331055
+          ],
+          "polynomial": [
+            28.916800022125244,
+            28.951361179351807,
+            28.95616054534912,
+            28.946239948272705,
+            28.870720863342285
+          ]
+        },
+        "median_us": {
+          "native": 29.047040939331055,
+          "polynomial": 28.946239948272705
+        },
+        "measurement_order": [
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ]
+        ],
+        "speedup": 1.0034823518093707
+      },
+      "backward": {
+        "samples_us": {
+          "native": [
+            53.21311950683594,
+            53.28415870666504,
+            53.295040130615234,
+            53.36575984954834,
+            53.36128234863281
+          ],
+          "polynomial": [
+            53.12160015106201,
+            53.00096035003662,
+            52.99903869628906,
+            53.02559852600098,
+            53.09247970581055
+          ]
+        },
+        "median_us": {
+          "native": 53.295040130615234,
+          "polynomial": 53.02559852600098
+        },
+        "measurement_order": [
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ],
+          [
+            "polynomial",
+            "native"
+          ],
+          [
+            "native",
+            "polynomial"
+          ]
+        ],
+        "speedup": 1.0050813496142272
+      },
+      "numerics": {
+        "forward": {
+          "max_abs": 0.25,
+          "mean_abs": 0.0020468621514737606,
+          "relative_mae": 0.006431215442717075,
+          "cosine": 0.9999792575836182
+        },
+        "grad_gate": {
+          "max_abs": 0.3125,
+          "mean_abs": 0.0016668455209583044,
+          "relative_mae": 0.005117760971188545,
+          "cosine": 0.9999831914901733
+        },
+        "grad_up": {
+          "max_abs": 0.126953125,
+          "mean_abs": 0.002091331174597144,
+          "relative_mae": 0.0065684192813932896,
+          "cosine": 0.999978244304657
+        }
+      }
+    }
+  ]
+}

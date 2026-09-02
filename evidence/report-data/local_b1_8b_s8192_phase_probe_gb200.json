@@ -1,0 +1,53 @@
+{
+  "status": "complete",
+  "model_name": "8B",
+  "family_name": "B1",
+  "batch_size": 1,
+  "seq_len": 8192,
+  "variant_rows": {
+    "B1: FA4 + spline_silu": {
+      "status": "ok",
+      "batch_size": 1,
+      "seq_len": 8192,
+      "base_variant": "B1: FA4 + native_silu",
+      "var_variant": "B1: FA4 + spline_silu",
+      "base": {
+        "forward_ms": 135.3340606689453,
+        "loss_ms": 0.5352512001991272,
+        "backward_ms": 319.91602783203126,
+        "grad_clip_ms": 22.180588912963866,
+        "optimizer_ms": 120.18269958496094,
+        "total_ms": 598.7929931640625,
+        "tokens_per_sec": 13680.854808792801,
+        "loss_0": 264.0907897949219,
+        "loss_last": 237.46649169921875,
+        "seed": 24424
+      },
+      "variant": {
+        "forward_ms": 136.00380859375,
+        "loss_ms": 0.5383040070533752,
+        "backward_ms": 317.1972412109375,
+        "grad_clip_ms": 22.07795867919922,
+        "optimizer_ms": 120.10223083496093,
+        "total_ms": 596.5401733398437,
+        "tokens_per_sec": 13732.520232686975,
+        "loss_0": 264.1201477050781,
+        "loss_last": 233.47268676757812,
+        "seed": 24424
+      },
+      "speedups": {
+        "forward": 0.9950755208127645,
+        "backward": 1.0085712807927159,
+        "total": 1.0037764762959818,
+        "loss": 0.9943288424120066,
+        "grad_clip": 1.0046485381758297,
+        "optimizer": 1.000670002126027,
+        "core": 1.0045091656085088
+      }
+    }
+  },
+  "baseline_name": "B1: FA4 + native_silu",
+  "variant_order": [
+    "B1: FA4 + spline_silu"
+  ]
+}

@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "description": "Open-weight model protocol used for the paper's D4 polynomial evaluation.",
+  "provenance": {
+    "derived_from": "Graphcore low-bits-training",
+    "source_commit": "393b69e2993ef00c812dfc87ac5f93c146159f45",
+    "benchmark_source": "scripts/benchmark_hf_poly_inference.py",
+    "suite_source": "scripts/run_hf_poly_eval_suite.py",
+    "license": "Apache-2.0",
+    "runtime_config_attested": false,
+    "note": "The historical result artifact records campaign names but does not embed source revisions or sequence lengths; these settings are reconstructed from the source commit above."
+  },
+  "protocol": {
+    "batch_size": 1,
+    "prefill_measurements": 20,
+    "prefill_warmups": 5,
+    "decode_steps": 64,
+    "decode_measurements": 10,
+    "decode_warmups": 2,
+    "dtype": "bf16",
+    "quality_tasks": [
+      "mmlu",
+      "hellaswag",
+      "arc_challenge",
+      "winogrande",
+      "piqa",
+      "gsm8k",
+      "truthfulqa_mc2",
+      "wikitext"
+    ],
+    "quality_fewshot": {
+      "mmlu": 5,
+      "hellaswag": 10,
+      "arc_challenge": 25,
+      "winogrande": 5,
+      "piqa": 0,
+      "gsm8k": 5,
+      "truthfulqa_mc2": 0,
+      "wikitext": 0
+    }
+  },
+  "cases": [
+    {
+      "key": "qwen2p5_7b",
+      "paper_name": "Qwen2.5 7B",
+      "model_id": "Qwen/Qwen2.5-7B",
+      "revision": null,
+      "revision_note": "No revision was recorded by the historical suite.",
+      "software": {
+        "transformers": "4.48.2",
+        "accelerate": "1.12.0",
+        "safetensors": "0.6.2",
+        "extra_packages": []
+      },
+      "variants": [
+        "native",
+        "fused_swiglu_d4_current",
+        "fused_swiglu_d4_sollya"
+      ],
+      "attn_implementation": "sdpa",
+      "experts_implementation": null,
+      "trust_remote_code": false,
+      "eval_batch_size": "8",
+      "throughput_sequence_length": 2048,
+      "unused_quality_sequence_length_argument": 2048
+    },
+    {
+      "key": "qwen3_30b_a3b_base",
+      "paper_name": "Qwen3 30B-A3B",
+      "model_id": "Qwen/Qwen3-30B-A3B-Base",
+      "revision": null,
+      "revision_note": "No revision was recorded by the historical suite.",
+      "software": {
+        "transformers": "5.9.0",
+        "accelerate": "1.13.0",
+        "safetensors": "0.7.0",
+        "extra_packages": ["kernels==0.14.1"]
+      },
+      "variants": [
+        "native",
+        "fused_swiglu_d4_current",
+        "fused_swiglu_d4_sollya"
+      ],
+      "attn_implementation": "sdpa",
+      "experts_implementation": "grouped_mm",
+      "trust_remote_code": false,
+      "eval_batch_size": "4",
+      "throughput_sequence_length": 512,
+      "unused_quality_sequence_length_argument": 2048
+    },
+    {
+      "key": "glm4p7_flash",
+      "paper_name": "GLM-4.7 Flash",
+      "model_id": "zai-org/GLM-4.7-Flash",
+      "revision": "7dd20894a642a0aa287e9827cb1a1f7f91386b67",
+      "software": {
+        "transformers": "5.9.0",
+        "accelerate": "1.13.0",
+        "safetensors": "0.7.0",
+        "extra_packages": ["kernels==0.14.1"]
+      },
+      "variants": [
+        "native",
+        "fused_swiglu_d4_current+spline_router_sigmoid_d4_current",
+        "fused_swiglu_d4_sollya+spline_router_sigmoid_d4_sollya"
+      ],
+      "attn_implementation": "sdpa",
+      "experts_implementation": "grouped_mm",
+      "trust_remote_code": false,
+      "eval_batch_size": "4",
+      "throughput_sequence_length": 512,
+      "unused_quality_sequence_length_argument": 2048
+    },
+    {
+      "key": "gpt_oss_120b",
+      "paper_name": "GPT-OSS 120B",
+      "model_id": "openai/gpt-oss-120b",
+      "revision": "b5c939de8f754692c1647ca79fbf85e8c1e70f8a",
+      "software": {
+        "transformers": "5.9.0",
+        "accelerate": "1.13.0",
+        "safetensors": "0.7.0",
+        "extra_packages": ["kernels==0.14.1"]
+      },
+      "variants": [
+        "native",
+        "spline_silu_d4_current",
+        "spline_silu_d4_sollya"
+      ],
+      "attn_implementation": "flex_attention",
+      "experts_implementation": null,
+      "trust_remote_code": false,
+      "eval_batch_size": "4",
+      "throughput_sequence_length": 512,
+      "unused_quality_sequence_length_argument": 2048
+    },
+    {
+      "key": "kimi_linear_48b_a3b_base",
+      "paper_name": "Kimi Linear 48B-A3B",
+      "model_id": "moonshotai/Kimi-Linear-48B-A3B-Base",
+      "revision": "3b171c17bfc4ee348599b6781a2ca8715c21c8dc",
+      "software": {
+        "transformers": "4.57.6",
+        "accelerate": "1.12.0",
+        "safetensors": "0.6.2",
+        "extra_packages": [
+          "torchao==0.14.1",
+          "einops==0.8.1",
+          "fla-core==0.4.0",
+          "flash-linear-attention==0.4.0",
+          "tiktoken==0.12.0"
+        ]
+      },
+      "variants": [
+        "native",
+        "fused_swiglu_d4_current+spline_router_sigmoid_d4_current",
+        "fused_swiglu_d4_sollya+spline_router_sigmoid_d4_sollya"
+      ],
+      "attn_implementation": "flash_attention_2",
+      "experts_implementation": null,
+      "trust_remote_code": true,
+      "eval_batch_size": "1",
+      "throughput_sequence_length": 512,
+      "unused_quality_sequence_length_argument": 8192
+    }
+  ]
+}

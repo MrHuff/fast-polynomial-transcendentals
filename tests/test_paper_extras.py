@@ -101,6 +101,7 @@ def test_table_checker_requires_review_for_released_function_table() -> None:
         item["id"] for item in function_table["lineage"]["review_required"]
     } == table_checker.REQUIRED_FUNCTION_REVIEW_IDS
     for table in (
+        "function-speed",
         "integration-summary",
         "model-timing-summary",
         "same-checkpoint-eval",
@@ -158,6 +159,22 @@ def test_table_checker_semantics_match_core_generator() -> None:
     assert deployed_sollya.ERROR_MEASUREMENT == (
         table_checker.EXPECTED_FUNCTION_MEASUREMENT
     )
+
+
+def test_function_speed_rows_bind_both_memory_endpoints() -> None:
+    rows = table_checker.function_speed_rows(
+        REPOSITORY_ROOT
+        / "evidence/report-data/isolated_function_speedups_fp16.csv"
+    )
+    assert len(rows) == 8
+    sigmoid_forward = next(
+        row
+        for row in rows
+        if (row["direction"], row["function"], row["degree"])
+        == ("forward", "sigmoid", "D3")
+    )
+    assert sigmoid_forward["l2_speedup"] == 1.701769587017282
+    assert sigmoid_forward["hbm_speedup"] == 1.2486912411869147
 
 
 def test_table_checker_rejects_changed_function_cell(tmp_path: Path) -> None:

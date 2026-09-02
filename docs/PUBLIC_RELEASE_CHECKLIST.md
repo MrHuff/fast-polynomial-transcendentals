@@ -1,9 +1,10 @@
 # Public-release checklist
 
-This repository is private while it is cleaned and reviewed. Do not change its
-visibility until every P0 item has an identified owner and is complete. A scan
-of the current working tree alone is insufficient; review the exact candidate
-commit and its complete Git history.
+This repository is public. This checklist remains the release-hardening and
+prepublication audit ledger. An unchecked item has not been documented as
+complete here, and repository visibility does not satisfy it. A scan of the
+current working tree alone is insufficient; review the exact candidate commit
+and its complete Git history.
 
 ## P0: candidate identity and history
 

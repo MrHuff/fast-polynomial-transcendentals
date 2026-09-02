@@ -162,6 +162,49 @@ def integration_rows(path: Path) -> list[dict[str, Any]]:
     return result
 
 
+def function_speed_rows(path: Path) -> list[dict[str, Any]]:
+    endpoint_fields = {
+        (4194304, "L2 cache"): "l2_speedup",
+        (268435456, "HBM"): "hbm_speedup",
+    }
+    grouped: dict[tuple[str, str, str], dict[str, Any]] = {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        required = {
+            "direction",
+            "function",
+            "degree",
+            "elements",
+            "memory_regime",
+            "speedup_native_over_polynomial",
+        }
+        if not reader.fieldnames or not required.issubset(reader.fieldnames):
+            raise ValueError("isolated function-speed CSV lacks required columns")
+        for source_row in reader:
+            direction = source_row["direction"].lower()
+            function = source_row["function"].lower()
+            degree = f"D{int(source_row['degree'])}"
+            key = (direction, function, degree)
+            endpoint = (int(source_row["elements"]), source_row["memory_regime"])
+            if endpoint not in endpoint_fields:
+                raise ValueError(f"unexpected isolated function-speed endpoint: {endpoint}")
+            field = endpoint_fields[endpoint]
+            row = grouped.setdefault(
+                key,
+                {"direction": direction, "function": function, "degree": degree},
+            )
+            if field in row:
+                raise ValueError(f"duplicate isolated function-speed row: {key} {endpoint}")
+            row[field] = float(source_row["speedup_native_over_polynomial"])
+
+    required_fields = {"l2_speedup", "hbm_speedup"}
+    for key, row in grouped.items():
+        missing = required_fields - row.keys()
+        if missing:
+            raise ValueError(f"incomplete isolated function-speed row: {key} missing {sorted(missing)}")
+    return list(grouped.values())
+
+
 def model_timing_rows(full_model_path: Path, b4_path: Path) -> list[dict[str, Any]]:
     full_model = json.loads(full_model_path.read_text())
     comparisons = full_model.get("comparisons", {})
@@ -499,6 +542,8 @@ def audit(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     allow_review_required = bool(getattr(args, "allow_review_required", False))
     sources = {
         "function": args.function_comparison,
+        "function_speed": args.evidence_dir
+        / "isolated_function_speedups_fp16.csv",
         "integration": args.evidence_dir
         / "b1_b4_100_iteration_phase_probes_gb200.json",
         "full_model": args.evidence_dir / "b1_b4_full_model_100step_gb200.json",
@@ -510,6 +555,16 @@ def audit(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if not path.is_file():
             raise FileNotFoundError(path)
     tables: dict[str, Any] = {}
+    function_speed_decimals = int(claims["function-speed"].get("decimals", 2))
+    tables["function-speed"] = compare_rows(
+        claims["function-speed"]["rows"],
+        function_speed_rows(sources["function_speed"]),
+        keys=("direction", "function", "degree"),
+        fields={
+            "l2_speedup": function_speed_decimals,
+            "hbm_speedup": function_speed_decimals,
+        },
+    )
     tables["integration-summary"] = compare_rows(
         claims["integration-summary"]["rows"],
         integration_rows(sources["integration"]),

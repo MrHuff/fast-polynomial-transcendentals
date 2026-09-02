@@ -95,12 +95,22 @@ semantic review: asymmetric BF16 handling of current and Sollya coefficients,
 host NumPy rather than device error, and incomplete endpoint-constrained
 least-squares lineage.
 
+## Table 3 isolated function speed
+
+The isolated FP16 speed table is bound to
+`evidence/report-data/isolated_function_speedups_fp16.csv`. Its adjacent
+provenance JSON records the 4M-element L2 and 268M-element HBM endpoints and
+nine alternating rounds; the `_gb200.json` artifact retains every timed
+sample. The general table audit below checks each displayed ratio at two
+decimal places.
+
 ## Quantitative table audit
 
 The checked-in claim map transcribes the rounded values in the packaged
 manuscript and binds that `main.tex` by SHA-256. The checker derives the
-function, component, complete-model, downstream, and paired-pretraining rows
-from released evidence while ignoring historical run identifier columns:
+function-error, isolated-function-speed, component, complete-model,
+downstream, and paired-pretraining rows from released evidence while ignoring
+historical run identifier columns:
 
 ```bash
 python extras/paper/check_paper_tables.py \
@@ -124,7 +134,7 @@ altered embedded semantics fail even when all numeric cells match.
 Any value that changes after the manuscript's stated rounding is a mismatch.
 The audit does not treat the claims map as evidence: each row must be recovered
 from the named source artifact. The retained deployed-header comparison and
-the other four released evidence groups currently pass numerically. Because
+the other five released evidence groups currently pass numerically. Because
 the validated lineage sidecar records unresolved Table 2 semantics, the
 default command writes `review-required` and exits 2. This keeps a release
 check from treating a numeric match as scientific approval. To inspect the

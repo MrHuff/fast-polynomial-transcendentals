@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "summary_artifact": "isolated_function_speedups_fp16.csv",
+  "raw_artifact": "isolated_function_speedups_fp16_gb200.json",
+  "measurement": {
+    "hardware": "NVIDIA GB200",
+    "dtype": "torch.float16",
+    "benchmark_driver": "autonumerics_zero/experiments/benchmark_report_function_speed.py",
+    "timer": "CUDA events",
+    "warmup_calls_per_path": 1000,
+    "timed_calls_per_round": 1000,
+    "alternating_rounds": 9,
+    "speedup_definition": "native PyTorch median time divided by packed polynomial median time",
+    "working_sets": [
+      {
+        "elements": 4194304,
+        "label": "L2 cache"
+      },
+      {
+        "elements": 268435456,
+        "label": "HBM"
+      }
+    ]
+  },
+  "lineage": {
+    "measurement_created_utc": "2026-09-02T22:01:54.093989+00:00",
+    "historical_table_first_commit": "b608e49a864a1c9446af166cb63a4033dc6a2b5a",
+    "historical_table_last_pre_restructure_commit": "4e732e22c1857ebd291c3cf9387239a245758622",
+    "note": "The September 2026 measurement supersedes the historical manuscript-only ratios with explicit degrees, alternating rounds, and retained raw per-round timings."
+  }
+}

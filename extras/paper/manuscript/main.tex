@@ -91,18 +91,21 @@ and memory pipelines at different rates, so kernel bottlenecks move as hardware
 evolves. FlashAttention-4 exposed this imbalance inside attention on NVIDIA
 Blackwell. We test whether short polynomial programs can accelerate other
 special-function-unit (SFU) operations in large language models (LLMs). We
-replace native sigmoid, tanh, and sigmoid linear unit (SiLU) with degree-3 or
-degree-4 bfloat16 (BF16) or IEEE binary16 (FP16) programs in four GB200 cases:
-dense SiLU, tanh-softcapped attention, sigmoid attention, and routed-expert
-Swish-gated linear unit (SwiGLU). The programs combine analytical symmetry,
-explicit target-format rounding, and packed arithmetic inside the consuming
-kernels. B1, B2, and B4 improve complete training-step throughput by 2.7\%,
-2.9\%, and 8.0\%; B3 improves sigmoid-attention forward by 7.4\% and the
-complete GPU step by 0.3\%. Same-checkpoint open-weight ablations and one paired
-pre-training comparison per case extend the evaluation to model behavior. At
-common horizons near 100 billion tokens, the final smoothed training-loss
-deltas (polynomial minus native) are $+0.079$, $+0.003$, $-0.107$, and $+0.003$
-for B1--B4.
+first compare native PyTorch evaluation with packed fused multiply--add
+(FMA) programs in an isolated IEEE binary16 (FP16) sweep spanning L2-resident
+and high-bandwidth-memory (HBM)-resident working sets. We then replace native
+sigmoid, tanh, and sigmoid linear unit (SiLU) with degree-3 or degree-4
+bfloat16 (BF16) programs in four GB200 cases: dense SiLU, tanh-softcapped
+attention, sigmoid attention, and routed-expert Swish-gated linear unit
+(SwiGLU). The programs combine analytical symmetry, target-format rounding,
+and packed arithmetic inside consuming kernels. The isolated paths improve by
+1.19--2.19x in L2 and 1.00--1.70x in HBM. B1, B2, and B4 improve complete
+training-step throughput by 2.7\%, 2.9\%, and 8.0\%; B3 improves
+sigmoid-attention forward by 7.4\% and the complete GPU step by 0.3\%.
+Same-checkpoint open-weight ablations and one paired pre-training comparison per
+case extend the evaluation to model behavior. At common horizons near 100
+billion tokens, the final smoothed training-loss deltas (polynomial minus
+native) are $+0.079$, $+0.003$, $-0.107$, and $+0.003$ for B1--B4.
 \end{abstract}
 
 \keywords{GPU kernels, polynomial approximation, transcendental functions,
@@ -121,8 +124,10 @@ algorithm and its instruction pipeline around that imbalance.
 Large language models (LLMs) expose the same resource imbalance beyond softmax.
 Dense multilayer perceptrons (MLPs), attention variants, and routed experts
 interleave matrix multiplication with sigmoid, tanh, and sigmoid linear unit
-(SiLU). The native paths studied here evaluate these transcendentals through
-SFU-backed instruction sequences. A short polynomial can instead use packed
+(SiLU). The native forward paths studied here evaluate these transcendentals
+through SFU-backed instruction sequences. Native backward paths either
+reevaluate the required transcendental or apply an algebraic rule to a forward
+result, depending on the operator. A short polynomial can instead use packed
 bfloat16 (BF16) or IEEE binary16 (FP16) arithmetic on CUDA-core pipelines. We
 trace each candidate from target-precision error through consuming-component
 runtime and complete-step throughput, then measure same-checkpoint task
@@ -425,8 +430,8 @@ Exact GELU obeys the same derivative identity. Our direct backward fit targets
 this centered odd residual and preserves the complementary-gradient
 relationship.
 
-There are two backward strategies. An algebraic backward reuses the forward
-value:
+We use three backward constructions. Algebraic identities express a derivative
+through a function value:
 \begin{align}
     \sigma'(x) &= \sigma(x)(1-\sigma(x)), \\
     \tanh'(x) &= 1-\tanh^2(x).
@@ -438,16 +443,28 @@ For softcap, the scale cancels:
     =1-\tanh^2(x/\alpha).
     \label{eq:softcap-grad}
 \end{equation}
-Algebraic backward reuses the forward result and adds only arithmetic, while
-forward error enters the gradient through a product or square and can require
-range clipping. A direct fit to $f'$ controls gradient error independently and
-can exploit the simpler backward parity. This direct program supplies a
-surrogate gradient rather than the analytic derivative of the selected forward
-polynomial. We measure both gradient error and training loss. The accepted B3
-design uses a direct D3 sigmoid value and direct D4 derivative, while B2 reuses
-its tanh output algebraically.
+The value can be saved from forward or recomputed in backward. B1 and B4
+recompute a D3 sigmoid approximation $p(x)$, form
+$\widetilde{\silu}(x)=xp(x)$, and evaluate its backward rule as
+$p(x)+xp(x)(1-p(x))$. A differentiated-polynomial backward instead derives its
+coefficients from the selected forward polynomial; B2 differentiates its D4
+tanh program and evaluates the resulting D3 program at the recomputed score.
+A direct fit to $f'$ controls gradient error independently and can exploit the
+simpler backward parity. This direct program supplies a surrogate gradient
+rather than the analytic derivative of the selected forward polynomial. The
+accepted B3 design couples a direct D3 sigmoid value with a separately targeted,
+factored D4 derivative surrogate. We measure gradient error and training loss
+for the deployed construction in each case.
 
 \subsection{Packed CUDA and inline PTX programs}
+
+We focus on 16-bit floating-point execution because NVIDIA exposes packed
+two-lane arithmetic for both IEEE binary16 (FP16) and BF16. The isolated
+function sweep uses FP16: each 32-bit \texttt{\_\_half2} operand holds two
+values, and \texttt{\_\_hfma2} advances two Horner chains with one packed FMA.
+The B1--B4 integrations use the corresponding BF16 path, with
+\texttt{\_\_nv\_bfloat162} and, for B3, explicit
+\texttt{fma.rn.bf16x2} PTX.
 
 The implementation removes scalar work from the instruction schedule in three
 steps. First, B1, B2, and B4 process two BF16 values per arithmetic instruction.
@@ -505,6 +522,23 @@ The comparison in \cref{tab:function-summary} evaluates both coefficient sets
 in real arithmetic on 20,001 uniformly spaced points over $[-L_c,L_c]$. This
 coefficient control omits intermediate rounding and is separate from the
 target-precision replay.
+
+\subsection{Isolated function timing}
+
+The standalone size sweep compares packed FP16 CUDA polynomial kernels with
+the corresponding native PyTorch paths on GB200. Each path receives
+1,000 warm-up calls. We then alternate native-first and polynomial-first order
+over nine rounds of 1,000 CUDA-event-timed calls and report the ratio of the
+median per-round times. The retained endpoints contain 4,194,304 elements,
+whose forward and backward working sets fit in L2 cache, and 268,435,456
+elements, which stream through HBM. Forward work is excluded from every
+backward timing. Native sigmoid and tanh backward consume precomputed forward
+outputs and apply $g\,y(1-y)$ and $g(1-y^2)$, respectively. Their polynomial
+comparators consume $x$ and evaluate separately fitted D4 derivative programs.
+Those two rows therefore compare direct derivative fits with native algebraic
+backward, rather than comparing SFU instructions with FMAs. This sweep
+exercises the FP16 \texttt{\_\_half2} implementation; the B1--B4 component and
+model measurements use BF16.
 
 \subsection{Component and training-step timing}
 
@@ -624,15 +658,57 @@ after BF16 replay.
 
 The backward plots include cases where a low-error value fit produces a larger
 derivative error after coefficient quantization. B3 therefore pairs its D3
-forward fit with a separately fitted D4 derivative. The next section measures
-whether the accepted numerical programs improve their consuming components.
+forward fit with a separately fitted D4 derivative. The following measurements
+move from standalone functions to their consuming components.
+
+\subsubsection{Isolated FP16 function speed}
+
+How does the packed polynomial path compare with the native PyTorch path
+before integration, and how does that comparison change with the memory
+regime? \Cref{tab:function-speed} reports the cache-resident and HBM-resident
+endpoints of the standalone FP16 size sweep.
+
+\begin{table}[H]
+\centering
+\reporttablefont
+\caption{Isolated FP16 function speed on GB200. Speedup is native PyTorch
+time divided by packed polynomial CUDA time, rounded to three decimals. The two
+columns report 4,194,304 elements (L2-cache resident) and 268,435,456 elements
+(HBM resident). Backward polynomial rows are direct derivative fits evaluated
+from $x$; native sigmoid and tanh backward use precomputed forward outputs.}
+\label{tab:function-speed}
+\begin{tabularx}{\textwidth}{@{}llYrr@{}}
+\toprule
+\textbf{Direction} & \textbf{Function} & \textbf{Polynomial program} &
+\shortstack{\textbf{4M elements}\\\textbf{(L2 cache)}} &
+\shortstack{\textbf{268M elements}\\\textbf{(HBM)}} \\
+\midrule
+Forward & Sigmoid & D3 polynomial & 1.702x & 1.249x \\
+Forward & Tanh    & D4 polynomial & 1.187x & 1.143x \\
+Forward & SiLU    & D3 polynomial & 1.536x & 1.267x \\
+Forward & GELU    & D5 polynomial & 1.673x & 1.702x \\
+\midrule
+Backward & Sigmoid & D4 direct derivative & 2.135x & 1.004x \\
+Backward & Tanh    & D4 direct derivative & 2.184x & 1.003x \\
+Backward & SiLU    & D3 direct derivative & 2.192x & 1.119x \\
+Backward & GELU    & D5 direct derivative & 2.193x & 1.615x \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The cache-resident endpoint ranges from 1.187x to 2.193x. At the HBM-resident
+endpoint, sigmoid and tanh backward measure 1.004x and 1.003x, while GELU
+backward measures 1.615x. The sigmoid and tanh backward paths each read two
+FP16 arrays and write one; their median times differ by less than 0.4\% in HBM.
+Seven of the eight rows have a smaller speedup at the HBM-resident endpoint;
+GELU forward measures 1.673x in L2 and 1.702x in HBM.
 
 \subsection{Integration into LLM components}
 
 Which function-level programs reduce component runtime after integration?
 \Cref{tab:integration-summary} reports matched component measurements before
-complete-model timing. B1 and B4 isolate their activation kernels; B2 and B3
-time complete causal attention.
+complete-model timing. B1 is a unary SiLU probe, B4 isolates the routed-expert
+activation, and B2 and B3 time complete causal attention.
 
 \begin{table}[H]
 \centering
@@ -642,7 +718,9 @@ polynomial time; ratios are rounded to three decimals. Each ratio uses the
 medians of five alternating, 100-iteration round means. B1 evaluates
 58,720,256 values; B2 and B3 use causal grouped-query attention (GQA) with batch
 1, sequence length 4096, 32 query heads, 8 key/value heads, and head dimension
-128; B4 evaluates 24,576 rows with hidden size 1280.}
+128; B4 evaluates 24,576 rows with hidden size 1280. The B1 row is a unary
+direct-derivative probe; the complete-step B1 measurements use the deployed
+packed SwiGLU path described below.}
 \label{tab:integration-summary}
 \begin{tabularx}{\textwidth}{@{}lYYrr@{}}
 \toprule
@@ -650,7 +728,7 @@ medians of five alternating, 100-iteration round means. B1 evaluates
 \shortstack{\textbf{Forward}\\\textbf{speedup}} &
 \shortstack{\textbf{Backward}\\\textbf{speedup}} \\
 \midrule
-B1 & One-kernel SiLU activation & D3 SiLU & 1.055x & 1.007x \\
+B1 & One-kernel SiLU activation & D3 direct-fit probe & 1.055x & 1.007x \\
 B2 & Complete causal GQA attention & D4 tanh softcap & 2.053x &
 1.046x \\
 B3 & Complete causal GQA attention & D3/D4 sigmoid & 1.074x &
@@ -662,13 +740,18 @@ B4 & One-kernel expert activation & D3 SwiGLU & 1.003x & 1.005x \\
 
 \subsubsection{B1: dense SiLU}
 
-Packed D3 SiLU measures 1.055x forward speedup and 1.007x backward speedup on
-the 58.7M-value BF16 activation benchmark.
+The unary D3 SiLU probe measures 1.055x forward speedup and 1.007x backward
+speedup on 58.7M BF16 values; its backward is the standalone direct D3
+derivative fit. The deployed B1 packed SwiGLU backward instead recomputes the
+D3 sigmoid approximation from the gate input and forms the SiLU derivative
+algebraically. The complete-step measurements below exercise that deployed
+path.
 
 \subsubsection{B2: tanh softcap}
 
-B2 replaces tanh in \cref{eq:softcap} inside FA4. Forward uses packed D4, and
-backward uses \cref{eq:softcap-grad} without a second tanh evaluation. Complete
+B2 replaces tanh in \cref{eq:softcap} inside FA4. Forward uses packed D4.
+Backward differentiates the selected D4 coefficients and evaluates the
+resulting D3 polynomial at the recomputed, scaled attention score. Complete
 causal attention measures 2.053x forward speedup and 1.046x backward speedup.
 
 \subsubsection{B3: sigmoid attention}
@@ -681,8 +764,9 @@ weights the value matrix $V$ to produce output $O$:
     \label{eq:sigmoid-attention}
 \end{equation}
 At sequence length 4096, the evaluator computes this normalized sigmoid with
-D3 forward and a D4 derivative; a runtime guard enforces that fitted length.
-Complete-attention forward measures 1.074x and backward measures 1.001x.
+D3 forward and a coupled, factored D4 derivative surrogate; a runtime guard
+enforces that fitted length. Complete-attention forward measures 1.074x and
+backward measures 1.001x.
 
 \subsubsection{B4: routed expert SwiGLU}
 
@@ -692,9 +776,10 @@ The fused expert operation is
 \begin{equation}
     Y=\widetilde{\silu}(XW_g)\odot(XW_u).
 \end{equation}
-Its backward computes gradients for both projected inputs in one pass. The
-one-kernel activation benchmark measures 1.003x in forward and 1.005x in
-backward.
+Its backward recomputes the D3 sigmoid approximation from the gate input,
+forms SiLU and its derivative algebraically, and computes gradients for both
+projected inputs in one pass. The one-kernel activation benchmark measures
+1.003x in forward and 1.005x in backward.
 
 \paragraph{Auxiliary integrations.}
 Further simplification of FA4's fractional exponential measures 1.898x for its

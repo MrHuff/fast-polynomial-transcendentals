@@ -51,6 +51,7 @@ research repository's full development history.
 | `src/sfu_repro/torchtitan/`, `configs/torchtitan/`, and `scripts/run_torchtitan.py` | Public TorchTitan v0.2.2 APIs plus the extracted B1--B5 kernel adapters | New public rerun protocol; replaces proprietary launch/data plumbing and preserves the declared matched operation boundaries and B5 routed-`exp2` schedules |
 | `src/sfu_repro/rope/` and `autonumerics_zero/spline_ops/sincos_kernels.cu` | `low-bits-training` commit `1461fd63fdcddb9ef27367a60036dee8e1a11159` and retained low-precision kernel sources | Standalone public fit, numerical, cache/HBM, repeated-evaluation, and fused-RoPE paths; original lattice-search and runtime record remain absent |
 | `autonumerics_zero/` | Selected files from the same path in `low-precision-functions` | Curated to fitting, kernel, and isolated experiment code relevant to the paper |
+| `autonumerics_zero/experiments/benchmark_report_function_speed.py` | September 2026 function-speed driver from `low-precision-functions` | Direct standalone driver for the selected FP16 D3--D5 programs and L2/HBM endpoint protocol |
 | `autonumerics_zero/evolution/fit_gelu_fp16.py` | `low-precision-functions` commit `eb9d1aac9c0d9a2fb5f375f8f35c2c3e1603d872`, `autonumerics_zero/experiments/fused_gemm/fit_gelu.py` | Compact standalone adapter over the unchanged fitting dependency; preserves the historical sweep and writes only the caller-selected JSON |
 | `evidence/report-data/` | `report/data/` in `low-precision-functions` | Copied as historical evidence; not relabelled as newly generated output |
 
@@ -67,12 +68,13 @@ FlashAttention-4 code and Python packages retain their own licenses.
 
 | Evidence | Known source binding | Remaining gap |
 |---|---|---|
-| `b1_b4_100_iteration_phase_probes_gb200.json` | Root revision `f0d890498ec338ff5a1af682d1b73cc9ba83a416` | Artifact records a dirty worktree; the complete local delta is unavailable |
+| `b1_b4_100_iteration_phase_probes_gb200.json` | Root revision `f0d890498ec338ff5a1af682d1b73cc9ba83a416` | Artifact records a dirty worktree; the complete local delta is unavailable. Its B1 backward row is a unary direct-derivative probe rather than the algebraic packed-SwiGLU backward used by deployed B1 |
 | `b1_b4_full_model_100step_gb200.json` | Materialized case settings and step measurements | Original complete invocation, raw logs, and immutable source binding are absent |
 | `b4_27a4b_local_100step_gb200.json` | Root `f0d890498ec338ff5a1af682d1b73cc9ba83a416`; low-bits `89694ba4e53300d71fad5672f3a15a5f533317b5`; command embedded in artifact | Distributed harness had uncommitted changes; only aggregate data and raw-log hashes survive |
 | `sollya_eval_results.csv` and `open_weight_eval_protocol.json` | Root `cdc11310a522b2b3ac7230fbba0efc7e7022e20d`; low-bits `393b69e2993ef00c812dfc87ac5f93c146159f45` | Protocol is source-derived, not runtime-attested; two Qwen checkpoint revisions, task-dataset commits, sampled few-shot identities, raw per-model result shards, and the complete runtime are absent |
 | `b1_b4_paired_loss_curves.csv` and provenance JSON | Materialized sampled histories and source snapshot metadata | Original launch manifests, complete configs, checkpoint hashes, seeds, and data-order proof are incomplete or absent |
 | `sollya_device_bf16.json` | Retained host-arithmetic comparison artifact; all selected manuscript cells can be read from it | Producing environment and immutable source binding are not fully recorded; current header literals are not BF16-rounded by the producer while Sollya coefficients are, and per-row fitting-method lineage is incomplete |
+| `isolated_function_speedups_fp16.csv`, provenance JSON, and raw GB200 JSON | September 2026 FP16 measurement with explicit degrees, 4M/268M workloads, nine alternating rounds, every per-round CUDA-event time, and hashes of the driver and loaded extension binary | The artifact records its producing `low-precision-functions` tree as dirty; the binary hash binds the loaded extension, while a clean standalone rerun is new evidence |
 | Fractional-`exp2` JSON artifacts | Retained fits and GB200 measurements | Most artifacts are not bound to an immutable clean source tree; one integrated artifact records requested and observed clocks |
 | `b5_exp2_pwl2_safe_8b_probe_fwd_bwd_gb200.json` and `b5_exp2_d2_safe_8b_probe_fwd_bwd_gb200.json` | Retained Llama-8B probe aggregates and routed schedules | The proprietary `gc-training` plumbing, historical initialization, raw logs, and immutable source binding were not retained |
 

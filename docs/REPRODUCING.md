@@ -30,9 +30,9 @@ as a new experiment.
 
 ## Clone and create the base environment
 
-The review repository is private. Use an account that has been granted access,
-and let Git or SSH handle authentication without embedding a token in the URL.
-The base package stays lightweight: PyTorch and Transformers are declared only
+The repository is public and can be cloned anonymously. If using an
+authenticated Git transport, do not embed a token in the URL. The base package
+stays lightweight: PyTorch and Transformers are declared only
 by the optional `test` extra used below. If the default PyTorch distribution is
 not appropriate for the intended CPU or CUDA platform, install the desired
 build first; the extra will reuse any compatible installation.
@@ -231,6 +231,47 @@ python -m pytest autonumerics_zero/spline_ops/test_spline_ops.py
 This step requires a CUDA compiler compatible with the installed PyTorch build.
 Compilation for another architecture is supported only as a new validation
 target; it does not reproduce the reported GB200 timing.
+
+## Run the isolated FP16 function-speed benchmark
+
+The standalone function sweep compares native PyTorch functions with the
+paper's selected packed polynomial programs: D3 sigmoid, D4 tanh, D3 SiLU, and
+D5 GELU in forward; and D4 sigmoid, D4 tanh, D3 SiLU, and D5 GELU in backward.
+It uses FP16 so the polynomial kernels evaluate pairs of values with `half2`
+vectorized fused multiply-add instructions. Every polynomial backward entry is
+a separately fitted direct derivative program evaluated from the original
+input. These isolated rows do not encode the case-specific backward
+construction used by every B1--B4 integration.
+
+After building `spline_ops`, reproduce the paper-aligned endpoints and timing
+protocol on a GB200:
+
+```bash
+mkdir -p outputs
+python autonumerics_zero/experiments/benchmark_report_function_speed.py \
+  --sizes 4194304,268435456 \
+  --warmup 1000 --repetitions 1000 --rounds 9 --seed 1234 \
+  --output outputs/isolated-function-speed.json
+```
+
+The 4,194,304-element workload is L2-cache resident under the benchmark's
+two-array forward and three-array backward working-set model. The
+268,435,456-element workload is HBM resident. Each reported speedup is the
+median native CUDA-event time divided by the median polynomial time across
+nine rounds whose measurement order alternates. For native sigmoid and tanh
+backward, the forward output is precomputed outside the timed region and the
+backward uses the framework's algebraic derivative. Those two rows compare a
+direct derivative fit with native algebraic backward; they are not
+SFU-versus-FMA backward comparisons.
+
+The retained summary is
+`evidence/report-data/isolated_function_speedups_fp16.csv`; its protocol and
+lineage are in the adjacent `.provenance.json`, and the complete per-round
+GB200 measurements are in
+`evidence/report-data/isolated_function_speedups_fp16_gb200.json`. A new run
+records the current repository revision, dirty-tree state, benchmark-driver
+hash, loaded extension binary and hash, CUDA/PyTorch versions, and GPU
+properties.
 
 ## Run the B1--B4 component probe
 
@@ -799,11 +840,11 @@ python extras/paper/check_paper_tables.py \
   --output outputs/paper/table_audit.json
 ```
 
-The retained deployed-header comparison and released integration,
-complete-model, downstream, and pre-training evidence reproduce the
-manuscript's rounded table cells. Running the checker without overrides audits
-all five retained sources without requiring Sollya. For Table 2, this is a
-numeric source-to-typeset audit only.
+The retained deployed-header comparison and released isolated-function,
+integration, complete-model, downstream, and pre-training evidence reproduce
+the manuscript's rounded table cells. Running the checker without overrides
+audits all six retained sources without requiring Sollya. For Table 2, this is
+a numeric source-to-typeset audit only.
 
 `extras/paper/generate_sollya_comparison.py` is an auxiliary D3--D6
 coefficient-sweep sensitivity control, not the Table 2 source. Seven selected

@@ -10,6 +10,15 @@ Filenames below without a directory are under \path{evidence/report-data/}.
     \path{autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json}
     contains the constrained and same-form Sollya comparison.
 
+    \item[Isolated function timing]
+    \path{isolated_function_speedups_fp16.csv} contains the FP16 endpoint
+    ratios in \cref{tab:function-speed}, and
+    \path{isolated_function_speedups_fp16.provenance.json} records the
+    benchmark protocol and manuscript lineage. Raw alternating-round timings
+    and environment metadata are in
+    \path{isolated_function_speedups_fp16_gb200.json}. The runnable driver is
+    \path{autonumerics_zero/experiments/benchmark_report_function_speed.py}.
+
     \item[Integrated timing]
     \path{b1_b4_100_iteration_phase_probes_gb200.json},
     \path{b1_b4_full_model_100step_gb200.json}, and

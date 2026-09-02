@@ -3,7 +3,7 @@
   "scope": "Quantitative tables in the September 2026 manuscript snapshot packaged under extras/paper/manuscript",
   "manuscript_source": {
     "path": "extras/paper/manuscript/main.tex",
-    "sha256": "e6ce2c9592f52d2df5cc5566a6b6e8fdee90cbf4318e0b80d333a35247bb1939"
+    "sha256": "bbf7f2102210bebcc9157b5077b9265a813613e1f9e2c91b41b5fda012fdb4a8"
   },
   "tables": {
     "function-summary": {
@@ -22,6 +22,20 @@
       ],
       "scale": 1000,
       "decimals": 2
+    },
+    "function-speed": {
+      "source": "evidence/report-data/isolated_function_speedups_fp16.csv",
+      "rows": [
+        {"direction": "forward", "function": "sigmoid", "degree": "D3", "l2_speedup": 1.702, "hbm_speedup": 1.249},
+        {"direction": "forward", "function": "tanh", "degree": "D4", "l2_speedup": 1.187, "hbm_speedup": 1.143},
+        {"direction": "forward", "function": "silu", "degree": "D3", "l2_speedup": 1.536, "hbm_speedup": 1.267},
+        {"direction": "forward", "function": "gelu", "degree": "D5", "l2_speedup": 1.673, "hbm_speedup": 1.702},
+        {"direction": "backward", "function": "sigmoid", "degree": "D4", "l2_speedup": 2.135, "hbm_speedup": 1.004},
+        {"direction": "backward", "function": "tanh", "degree": "D4", "l2_speedup": 2.184, "hbm_speedup": 1.003},
+        {"direction": "backward", "function": "silu", "degree": "D3", "l2_speedup": 2.192, "hbm_speedup": 1.119},
+        {"direction": "backward", "function": "gelu", "degree": "D5", "l2_speedup": 2.193, "hbm_speedup": 1.615}
+      ],
+      "decimals": 3
     },
     "integration-summary": {
       "source": "evidence/report-data/b1_b4_100_iteration_phase_probes_gb200.json",

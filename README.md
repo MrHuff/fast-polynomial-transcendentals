@@ -5,10 +5,10 @@ Polynomial Transcendentals for LLMs*. It studies low-order polynomial programs
 that replace selected special-function-unit (SFU) operations in large language
 model (LLM) components.
 
-> **Status:** private release candidate. The executable research code,
+> **Status:** public research artifact. The executable research code,
 > third-party attributions, public TorchTitan bridge, and pinned downstream-
-> evaluation protocol are present. Complete the remaining checks in
-> `docs/PUBLIC_RELEASE_CHECKLIST.md` before changing repository visibility.
+> evaluation protocol are present. Remaining verification and release-hardening
+> work is tracked in `docs/PUBLIC_RELEASE_CHECKLIST.md`.
 
 The repository deliberately does not depend on the original
 `low-bits-training` module. The reusable activation, attention, TorchTitan, and
@@ -44,6 +44,7 @@ is a new measurement, not a reproduction of the paper's timing result.
 | Re-run retained activation, GELU/ERF, tanh, fractional-`exp2`, and sine/cosine fitting programs | CPU; some comparisons require Sollya |
 | Audit the exact deployed B3 constants and packed-BF16 arithmetic | CPU; the original B3 coefficient-selection program was not retained |
 | Build and test the packed polynomial extension | CUDA toolchain and supported GPU |
+| Re-run the isolated FP16 native-versus-polynomial function sweep at L2 and HBM endpoints | Compiled extension, CUDA, and supported GPU |
 | Re-run isolated B1--B4 and FlashAttention-4 probes | Patched FlashAttention-4, CUDA, and supported GPU |
 | Re-run cache/HBM, repeated-evaluation, and fused-RoPE probes | Compiled extension, CUDA, and supported GPU |
 | Re-run B1--B4 model probes and declared 100B-token recipes | Pinned TorchTitan, CUDA, model tokenizer, corpus access, and 1--32 supported GPUs |
@@ -74,9 +75,9 @@ model workflow, output path, and historical boundary.
 
 ## Quick start
 
-The repository is private during review, so cloning requires access granted by
-the owner. No credential belongs in a command, configuration file, or result
-artifact. The base package does not install PyTorch or Transformers. The
+The repository is public and can be cloned anonymously. No credential belongs
+in a command, configuration file, or result artifact. The base package does
+not install PyTorch or Transformers. The
 optional `test` extra includes both so a clean development environment can
 collect and run the complete CPU test suite. To select a particular CPU or CUDA
 PyTorch build, install that build first; the extra will reuse any compatible
@@ -112,6 +113,22 @@ The asset helper downloads tokenizer files only, at the commits declared in
 `src/sfu_repro/torchtitan/pins.py`, and writes a local SHA-256 manifest. It reads
 provider authentication through the standard Hugging Face environment or
 credential store and never accepts a token on its command line.
+
+Run the paper's isolated FP16 function comparison after building the packed
+CUDA extension:
+
+```bash
+python autonumerics_zero/experiments/benchmark_report_function_speed.py \
+  --sizes 4194304,268435456 \
+  --warmup 1000 --repetitions 1000 --rounds 9 --seed 1234 \
+  --output results/isolated-function-speed.json
+```
+
+This compares the native PyTorch and explicit D3--D5 packed polynomial paths
+at 4M-element L2-resident and 268M-element HBM-resident endpoints. The FP16
+kernels use `half2` arithmetic so their Horner chains execute vectorized fused
+multiply-add instructions. The retained CSV, protocol record, and raw nine-
+round GB200 timings are under `evidence/report-data/`.
 
 Run the standalone component probe after installing its CUDA dependencies:
 

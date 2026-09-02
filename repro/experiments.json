@@ -176,6 +176,34 @@
       "protocol": "docs/B3_DEPLOYED_FIT_AUDIT.md"
     },
     {
+      "id": "isolated-fp16-function-speed",
+      "status": "hardware-gated",
+      "hardware": "NVIDIA GB200/SM100",
+      "command": ["python", "autonumerics_zero/experiments/benchmark_report_function_speed.py", "--sizes", "4194304,268435456", "--warmup", "1000", "--repetitions", "1000", "--rounds", "9", "--seed", "1234", "--output", "outputs/isolated-function-speed.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "autonumerics_zero/experiments/benchmark_report_function_speed.py",
+          "autonumerics_zero/spline_ops"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "PyTorch with CUDA", "built sfu-spline-ops"],
+        "hardware": ["NVIDIA SM100 GPU"],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "isolated-fp16-function-benchmark",
+        "output_class": "new-measurement",
+        "outputs": ["outputs/isolated-function-speed.json"],
+        "substitutions": {},
+        "notes": "Measures explicit D3--D5 FP16 forward and backward functions at 4M-element L2-resident and 268M-element HBM-resident endpoints using nine alternating native/polynomial rounds."
+      },
+      "artifacts": [
+        "evidence/report-data/isolated_function_speedups_fp16.csv",
+        "evidence/report-data/isolated_function_speedups_fp16.provenance.json",
+        "evidence/report-data/isolated_function_speedups_fp16_gb200.json"
+      ]
+    },
+    {
       "id": "b1-b4-component-timing",
       "status": "hardware-gated",
       "hardware": "NVIDIA GB200/SM100",

@@ -25,6 +25,8 @@ same directory and include the updated `main.bbl` in review.
 paper output, LaTeX scratch files, internal-review archives, experiment
 credentials, raw job metadata, and local filesystem paths. `00README.json`
 declares `main.tex` as the top-level source and selects TeX Live 2023.
+The checked-in `main.pdf` is a reader copy and is not part of that upload
+allowlist.
 
 `SOURCE_MANIFEST.sha256` binds every file in the upload allowlist. Recompute it
 only after reviewing an intentional manuscript or asset change.

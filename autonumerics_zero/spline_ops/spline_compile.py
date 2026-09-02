@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 """
 torch.compile compatibility layer for spline_ops.
 
@@ -15,8 +19,7 @@ import torch.autograd
 from functools import lru_cache
 
 # Ensure the C++ extension is loaded first
-import sys, os
-sys.path.insert(0, os.path.dirname(__file__))
+import os
 import spline_ops as _spline_ops  # noqa: F401
 
 
@@ -77,9 +80,7 @@ def _swish_mul_packed_variant_fwd_cpp_fake(packed, degree, coeff_source_id):
 
 
 @torch.library.register_fake("spline_ops::swish_mul_packed_variant_bwd")
-def _swish_mul_packed_variant_bwd_cpp_fake(
-    grad_out, packed, degree, coeff_source_id
-):
+def _swish_mul_packed_variant_bwd_cpp_fake(grad_out, packed, degree, coeff_source_id):
     del grad_out, degree, coeff_source_id
     return torch.empty_like(packed)
 
@@ -252,69 +253,86 @@ def _env_flag(name: str, default: bool = False) -> bool:
         return default
     return value.lower() in ("1", "true", "yes", "on")
 
+
 # =============================================================================
 # Custom ops via torch.library.custom_op — opaque to dynamo
 # =============================================================================
+
 
 @torch.library.custom_op("spline_compile::swish_fwd", mutates_args=())
 def _swish_fwd(x: torch.Tensor) -> torch.Tensor:
     return _spline_ops.swish_fwd(x)
 
+
 @_swish_fwd.register_fake
 def _swish_fwd_fake(x):
     return torch.empty_like(x)
+
 
 @torch.library.custom_op("spline_compile::swish_bwd", mutates_args=())
 def _swish_bwd(grad_out: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     return _spline_ops.swish_bwd(grad_out, x)
 
+
 @_swish_bwd.register_fake
 def _swish_bwd_fake(grad_out, x):
     return torch.empty_like(x)
+
 
 @torch.library.custom_op("spline_compile::sigmoid_fwd", mutates_args=())
 def _sigmoid_fwd(x: torch.Tensor) -> torch.Tensor:
     return _spline_ops.sigmoid_fwd(x)
 
+
 @_sigmoid_fwd.register_fake
 def _sigmoid_fwd_fake(x):
     return torch.empty_like(x)
+
 
 @torch.library.custom_op("spline_compile::sigmoid_bwd_alg", mutates_args=())
 def _sigmoid_bwd_alg(grad_out: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return _spline_ops.sigmoid_bwd_alg(grad_out, y)
 
+
 @_sigmoid_bwd_alg.register_fake
 def _sigmoid_bwd_alg_fake(grad_out, y):
     return torch.empty_like(y)
+
 
 @torch.library.custom_op("spline_compile::tanh_fwd", mutates_args=())
 def _tanh_fwd(x: torch.Tensor) -> torch.Tensor:
     return _spline_ops.tanh_fwd(x)
 
+
 @_tanh_fwd.register_fake
 def _tanh_fwd_fake(x):
     return torch.empty_like(x)
+
 
 @torch.library.custom_op("spline_compile::tanh_bwd_alg", mutates_args=())
 def _tanh_bwd_alg(grad_out: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return _spline_ops.tanh_bwd_alg(grad_out, y)
 
+
 @_tanh_bwd_alg.register_fake
 def _tanh_bwd_alg_fake(grad_out, y):
     return torch.empty_like(y)
+
 
 @torch.library.custom_op("spline_compile::gelu_fwd", mutates_args=())
 def _gelu_fwd(x: torch.Tensor) -> torch.Tensor:
     return _spline_ops.gelu_fwd(x)
 
+
 @_gelu_fwd.register_fake
 def _gelu_fwd_fake(x):
     return torch.empty_like(x)
 
+
 @torch.library.custom_op("spline_compile::gelu_bwd", mutates_args=())
 def _gelu_bwd(grad_out: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     return _spline_ops.gelu_bwd(grad_out, x)
+
 
 @_gelu_bwd.register_fake
 def _gelu_bwd_fake(grad_out, x):
@@ -423,33 +441,44 @@ def _gelu_variant_bwd_fake(grad_out, x, degree, coeff_source_id):
 # Autograd setup via setup_context (torch.compile-compatible pattern)
 # =============================================================================
 
+
 def _swish_fwd_setup_context(ctx, inputs, output):
     (x,) = inputs
     ctx.save_for_backward(x)
+
 
 def _swish_fwd_backward(ctx, grad_out):
     (x,) = ctx.saved_tensors
     return _swish_bwd(grad_out.contiguous(), x)
 
-_swish_fwd.register_autograd(_swish_fwd_backward, setup_context=_swish_fwd_setup_context)
+
+_swish_fwd.register_autograd(
+    _swish_fwd_backward, setup_context=_swish_fwd_setup_context
+)
 
 
 def _sigmoid_fwd_setup_context(ctx, inputs, output):
     ctx.save_for_backward(output)  # save y, not x
 
+
 def _sigmoid_fwd_backward(ctx, grad_out):
     (y,) = ctx.saved_tensors
     return _sigmoid_bwd_alg(grad_out.contiguous(), y)
 
-_sigmoid_fwd.register_autograd(_sigmoid_fwd_backward, setup_context=_sigmoid_fwd_setup_context)
+
+_sigmoid_fwd.register_autograd(
+    _sigmoid_fwd_backward, setup_context=_sigmoid_fwd_setup_context
+)
 
 
 def _tanh_fwd_setup_context(ctx, inputs, output):
     ctx.save_for_backward(output)  # save y, not x
 
+
 def _tanh_fwd_backward(ctx, grad_out):
     (y,) = ctx.saved_tensors
     return _tanh_bwd_alg(grad_out.contiguous(), y)
+
 
 _tanh_fwd.register_autograd(_tanh_fwd_backward, setup_context=_tanh_fwd_setup_context)
 
@@ -550,13 +579,16 @@ _gelu_variant_fwd.register_autograd(
 # Public API — drop-in replacements
 # =============================================================================
 
+
 def spline_silu(x):
     """Spline SiLU activation, torch.compile-compatible."""
     return _swish_fwd(x)
 
+
 def spline_sigmoid(x):
     """Spline sigmoid activation, torch.compile-compatible."""
     return _sigmoid_fwd(x)
+
 
 def spline_tanh(x):
     """Spline tanh activation, torch.compile-compatible."""
@@ -573,6 +605,7 @@ def make_spline_silu(degree: int | None = None, coeff_source: str = "current"):
     resolved_degree = 3 if degree is None else int(degree)
     coeff_source_id = _coeff_source_id(coeff_source)
     if resolved_degree == 3 and coeff_source_id == 0:
+
         def activation(x):
             return _swish_variant_fwd_cpp(x, resolved_degree, coeff_source_id)
 
@@ -654,9 +687,7 @@ def make_spline_silu_packed(
             coeff_source_id,
         )
 
-    activation_packed.__name__ = (
-        f"spline_silu_packed_d{resolved_degree}_{coeff_source}_{backward_impl}_bwd_fused"
-    )
+    activation_packed.__name__ = f"spline_silu_packed_d{resolved_degree}_{coeff_source}_{backward_impl}_bwd_fused"
     activation_packed.__spline_op__ = (
         "spline_ops::swish_mul_packed_variant_fwd"
         if backward_impl == "matched"

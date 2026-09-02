@@ -13,9 +13,11 @@ This product also includes selected AutoNumerics fitting, benchmark, and CUDA
 kernel files from the low-precision-functions research codebase. The selected
 subtree retains a copy of its source license at autonumerics_zero/LICENSE.
 
-The patched FlashAttention-4 Git submodule and all other third-party
-dependencies are separate works. Their copyright notices, licenses, and terms
-apply independently. This repository does not redistribute model weights,
+The patched FlashAttention-4, TorchTitan, and LM Evaluation Harness Git
+submodules and all other third-party dependencies are separate works. Their
+copyright notices, licenses, and terms apply independently. TorchTitan-derived
+control flow in the external adapter retains its BSD-3-Clause notice; see
+THIRD_PARTY_NOTICES.md. This repository does not redistribute model weights,
 tokenizers, or evaluation datasets; their provider terms are not modified by
 this notice.
 

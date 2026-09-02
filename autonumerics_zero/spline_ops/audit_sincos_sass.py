@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
 """Audit the emitted SASS for the paired native and polynomial sin/cos kernels."""
 
 from __future__ import annotations
@@ -6,9 +9,23 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 import json
+import platform
 from pathlib import Path
 import re
 import subprocess
+import sys
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+SOURCE_ROOT = REPOSITORY_ROOT / "src"
+if str(SOURCE_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_ROOT))
+
+from sfu_repro.source_attestation import (  # noqa: E402
+    git_state,
+    safe_command,
+    sha256_file,
+)
 
 
 FUNCTION_RE = re.compile(r"^\s*Function\s*:\s*(?P<name>\S+)", re.MULTILINE)
@@ -19,7 +36,9 @@ def function_sections(sass: str) -> dict[str, str]:
     matches = list(FUNCTION_RE.finditer(sass))
     return {
         match.group("name"): sass[
-            match.start() : matches[index + 1].start() if index + 1 < len(matches) else None
+            match.start() : (
+                matches[index + 1].start() if index + 1 < len(matches) else None
+            )
         ]
         for index, match in enumerate(matches)
     }
@@ -75,19 +94,15 @@ def summarize(name: str, body: str) -> dict[str, object]:
         "float_to_int_count": sum(opcode.startswith("F2I") for opcode in opcodes),
         "int_to_float_count": sum(opcode.startswith("I2FP") for opcode in opcodes),
         "round_count": sum(opcode.startswith("FRND") for opcode in opcodes),
-        "packed_bf16_fma_count": sum(
-            opcode == "HFMA2.BF16_V2" for opcode in opcodes
-        ),
-        "packed_bf16_mul_count": sum(
-            opcode == "HMUL2.BF16_V2" for opcode in opcodes
-        ),
+        "packed_bf16_fma_count": sum(opcode == "HFMA2.BF16_V2" for opcode in opcodes),
+        "packed_bf16_mul_count": sum(opcode == "HMUL2.BF16_V2" for opcode in opcodes),
         "packed_fp16_fma_count": sum(opcode == "HFMA2" for opcode in opcodes),
         "packed_fp16_mul_count": sum(opcode == "HMUL2" for opcode in opcodes),
         "mufu_instructions": mufu,
     }
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("extension", type=Path)
     parser.add_argument(
@@ -95,13 +110,120 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("/usr/local/cuda-13.0/bin/cuobjdump"),
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--json-out",
+        type=Path,
+        help="Optional caller-selected path for the audited opcode summary.",
+    )
+    parser.add_argument(
+        "--allow-unbound-source",
+        action="store_true",
+        help=(
+            "Permit a diagnostic audit from a dirty or unversioned source tree. "
+            "The extension is still identified by its SHA-256 digest."
+        ),
+    )
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    args = parse_args()
+def require_regular_file(path: Path, description: str) -> Path:
+    resolved = path.resolve()
+    if not resolved.is_file():
+        raise RuntimeError(f"{description} must be an existing regular file")
+    return resolved
+
+
+def safe_path_label(path: Path) -> str:
+    try:
+        return path.relative_to(REPOSITORY_ROOT.resolve()).as_posix()
+    except ValueError:
+        return f"<external>/{path.name}"
+
+
+def tool_version(cuobjdump: Path) -> str:
     completed = subprocess.run(
-        [str(args.cuobjdump), "--dump-sass", str(args.extension)],
+        [str(cuobjdump), "--version"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return " ".join((completed.stdout or completed.stderr).split())
+
+
+def result_document(
+    *,
+    opcode_results: dict[str, object],
+    extension: Path,
+    cuobjdump: Path,
+    repository_state: dict[str, object],
+    command: list[str],
+) -> dict[str, object]:
+    source_file = REPOSITORY_ROOT / "autonumerics_zero/spline_ops/sincos_kernels.cu"
+    audit_file = Path(__file__).resolve()
+    input_hashes = {
+        "extension_binary": sha256_file(extension),
+        "sincos_kernels.cu": sha256_file(source_file),
+        "audit_sincos_sass.py": sha256_file(audit_file),
+        "cuobjdump": sha256_file(cuobjdump),
+    }
+    if any(digest is None for digest in input_hashes.values()):
+        raise RuntimeError("could not hash every SASS audit input")
+    source_bound = bool(
+        repository_state.get("revision") is not None
+        and repository_state.get("dirty") is False
+    )
+    return {
+        "schema_version": 1,
+        "experiment": {
+            "id": "rope-sass-audit",
+            "provenance_class": (
+                "new-measurement" if source_bound else "diagnostic-unbound-source"
+            ),
+            "command": command,
+        },
+        "source": {
+            "repository": ("https://github.com/MrHuff/fast-polynomial-transcendentals"),
+            **repository_state,
+            "input_sha256": input_hashes,
+        },
+        "environment": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "cuobjdump": {
+                "path": safe_path_label(cuobjdump),
+                "version": tool_version(cuobjdump),
+            },
+        },
+        "measurement": {
+            "artifact": safe_path_label(extension),
+            "artifact_sha256": input_hashes["extension_binary"],
+            "summary_statistic": "exact opcode counts from cuobjdump --dump-sass",
+            "order_policy": "ELF function order is not interpreted as timing order",
+            "binary_source_binding": (
+                "binary hash plus clean source revision; no build-receipt proof that "
+                "the binary was compiled from that revision"
+            ),
+        },
+        "results": opcode_results,
+    }
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    extension = require_regular_file(args.extension, "extension")
+    cuobjdump = require_regular_file(args.cuobjdump, "cuobjdump")
+    repository_state = git_state(REPOSITORY_ROOT)
+    source_bound = bool(
+        repository_state.get("revision") is not None
+        and repository_state.get("dirty") is False
+    )
+    if not source_bound and not args.allow_unbound_source:
+        raise RuntimeError(
+            "the repository is dirty or unversioned; use a clean checkout or "
+            "--allow-unbound-source for a diagnostic audit"
+        )
+    completed = subprocess.run(
+        [str(cuobjdump), "--dump-sass", str(extension)],
         check=True,
         capture_output=True,
         text=True,
@@ -168,9 +290,7 @@ def main() -> None:
         if row["ffma_count"] or row["mufu_instructions"]:
             raise RuntimeError(f"{label} unexpectedly emitted FP32 FMA or SFU work")
 
-    fused_polynomial = payload[
-        "rope_apply_fixed_q32_half_turn_d5_d6_fp16"
-    ]
+    fused_polynomial = payload["rope_apply_fixed_q32_half_turn_d5_d6_fp16"]
     if (
         fused_polynomial["packed_bf16_fma_count"]
         or fused_polynomial["packed_bf16_mul_count"]
@@ -182,12 +302,11 @@ def main() -> None:
         raise RuntimeError(
             "fused polynomial RoPE unexpectedly emitted FP32 FMA or SFU work"
         )
-    fused_native_mufu = payload["rope_apply_native_sfu_fp16"][
-        "mufu_instructions"
-    ]
-    if fused_native_mufu.count("MUFU.SIN") != 4 or fused_native_mufu.count(
-        "MUFU.COS"
-    ) != 4:
+    fused_native_mufu = payload["rope_apply_native_sfu_fp16"]["mufu_instructions"]
+    if (
+        fused_native_mufu.count("MUFU.SIN") != 4
+        or fused_native_mufu.count("MUFU.COS") != 4
+    ):
         raise RuntimeError(
             "fused native RoPE did not emit four paired SFU evaluations: "
             f"{fused_native_mufu}"
@@ -205,7 +324,9 @@ def main() -> None:
 
     native_mufu = payload["native_sfu"]["mufu_instructions"]
     if native_mufu != ["MUFU.SIN", "MUFU.COS"]:
-        raise RuntimeError(f"Native control did not lower to SIN/COS SFUs: {native_mufu}")
+        raise RuntimeError(
+            f"Native control did not lower to SIN/COS SFUs: {native_mufu}"
+        )
     for label in (
         "poly_d3_d4",
         "poly_d3_d4_cycle",
@@ -272,7 +393,10 @@ def main() -> None:
             f"arithmetic operations: HFMA2={packed_fma}, HMUL2={packed_mul}"
         )
     native_bf16_mufu = payload["native_sfu_bf16"]["mufu_instructions"]
-    if native_bf16_mufu.count("MUFU.SIN") != 4 or native_bf16_mufu.count("MUFU.COS") != 4:
+    if (
+        native_bf16_mufu.count("MUFU.SIN") != 4
+        or native_bf16_mufu.count("MUFU.COS") != 4
+    ):
         raise RuntimeError(
             "BF16-output native control did not emit four paired SFU evaluations: "
             f"{native_bf16_mufu}"
@@ -288,9 +412,7 @@ def main() -> None:
         )
     packed_fp16_d3_d4 = payload["quarter_turn_d3_d4_packed_fp16"]
     if packed_fp16_d3_d4["mufu_instructions"]:
-        raise RuntimeError(
-            "quarter-turn packed FP16 D3/D4 unexpectedly contains MUFU"
-        )
+        raise RuntimeError("quarter-turn packed FP16 D3/D4 unexpectedly contains MUFU")
     if (
         packed_fp16_d3_d4["packed_fp16_fma_count"]
         >= packed_fp16["packed_fp16_fma_count"]
@@ -302,14 +424,21 @@ def main() -> None:
         raise RuntimeError("half-turn packed FP16 D3/D4 unexpectedly contains MUFU")
     packed_fp16_accurate = payload["half_turn_d7_d6_packed_fp16"]
     if packed_fp16_accurate["mufu_instructions"]:
-        raise RuntimeError("packed FP16 D7/D6 half-turn kernel unexpectedly contains MUFU")
-    if packed_fp16_accurate["packed_fp16_fma_count"] <= packed_fp16["packed_fp16_fma_count"]:
+        raise RuntimeError(
+            "packed FP16 D7/D6 half-turn kernel unexpectedly contains MUFU"
+        )
+    if (
+        packed_fp16_accurate["packed_fp16_fma_count"]
+        <= packed_fp16["packed_fp16_fma_count"]
+    ):
         raise RuntimeError(
             "packed FP16 D7/D6 kernel did not retain its additional HFMA2 stages"
         )
     packed_fp16_balanced = payload["half_turn_d5_d6_packed_fp16"]
     if packed_fp16_balanced["mufu_instructions"]:
-        raise RuntimeError("packed FP16 D5/D6 half-turn kernel unexpectedly contains MUFU")
+        raise RuntimeError(
+            "packed FP16 D5/D6 half-turn kernel unexpectedly contains MUFU"
+        )
     if not (
         packed_fp16["packed_fp16_fma_count"]
         < packed_fp16_balanced["packed_fp16_fma_count"]
@@ -320,13 +449,34 @@ def main() -> None:
             "stage between D5/D4 and D7/D6"
         )
     native_fp16_mufu = payload["native_sfu_fp16"]["mufu_instructions"]
-    if native_fp16_mufu.count("MUFU.SIN") != 4 or native_fp16_mufu.count("MUFU.COS") != 4:
+    if (
+        native_fp16_mufu.count("MUFU.SIN") != 4
+        or native_fp16_mufu.count("MUFU.COS") != 4
+    ):
         raise RuntimeError(
             "FP16-output native control did not emit four paired SFU evaluations: "
             f"{native_fp16_mufu}"
         )
 
-    print(json.dumps(payload, indent=2, sort_keys=True))
+    invocation = [
+        Path(sys.executable).name,
+        safe_path_label(Path(__file__).resolve()),
+        *(sys.argv[1:] if argv is None else argv),
+    ]
+    document = result_document(
+        opcode_results=payload,
+        extension=extension,
+        cuobjdump=cuobjdump,
+        repository_state=repository_state,
+        command=safe_command(invocation, REPOSITORY_ROOT),
+    )
+    rendered = json.dumps(document, indent=2, sort_keys=True) + "\n"
+    if args.json_out is not None:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(rendered, encoding="utf-8")
+        print(f"Wrote {args.json_out}")
+    else:
+        print(rendered, end="")
 
 
 if __name__ == "__main__":

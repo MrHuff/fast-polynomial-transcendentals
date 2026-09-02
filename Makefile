@@ -1,4 +1,4 @@
-.PHONY: test doctor audit-release verify-artifacts verify-manifest plot-pretraining
+.PHONY: test doctor doctor-train check-downstream audit-release verify-artifacts verify-manifest plot-pretraining
 
 PYTHON ?= python3
 
@@ -7,6 +7,12 @@ test:
 
 doctor:
 	$(PYTHON) -m sfu_repro.doctor --profile component
+
+doctor-train:
+	$(PYTHON) -m sfu_repro.doctor --profile train
+
+check-downstream:
+	$(PYTHON) scripts/check_open_weight_environment.py --models paper
 
 audit-release:
 	$(PYTHON) scripts/audit_release_tree.py

@@ -15,7 +15,12 @@ from typing import Callable
 
 import torch
 
-from .benchmark_polynomial_sincos import load_spline_ops, numerical_metrics
+from .benchmark_polynomial_sincos import (
+    attest_rope_sources,
+    load_spline_ops,
+    numerical_metrics,
+    rope_result_metadata,
+)
 
 
 TensorCall = Callable[[], torch.Tensor]
@@ -53,6 +58,7 @@ def benchmark_interleaved(
             "microseconds": statistics.median(values),
             "microseconds_min": min(values),
             "microseconds_max": max(values),
+            "samples_us": values,
         }
         for name, values in samples.items()
     }
@@ -70,6 +76,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--compute-iterations", type=int, default=64)
     parser.add_argument("--compute-repeats", type=int, default=300)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--allow-unbound-source",
+        action="store_true",
+        help="Permit a diagnostic result from dirty or non-local source.",
+    )
     return parser.parse_args()
 
 
@@ -83,6 +94,10 @@ def main() -> None:
         raise ValueError("sequence length and compute iterations must be positive")
 
     spline_ops = load_spline_ops()
+    repository_state, attestations, source_bound = attest_rope_sources(
+        spline_ops=spline_ops,
+        allow_unbound_source=args.allow_unbound_source,
+    )
     required = (
         "rope_sincos_native_fp16",
         "rope_sincos_fixed_d3_d4_fp16",
@@ -105,9 +120,9 @@ def main() -> None:
     frequencies_fp32 = frequencies.float().to(device)
     phase_scale = float(1 << 32) / (2.0 * math.pi)
     phase_increments = torch.round(frequencies * phase_scale).to(torch.int32).to(device)
-    positions = torch.arange(
-        args.sequence_length, dtype=torch.float64, device=device
-    )[:, None]
+    positions = torch.arange(args.sequence_length, dtype=torch.float64, device=device)[
+        :, None
+    ]
     angles = positions * frequencies.to(device)[None, :]
     reference = torch.stack((torch.cos(angles), torch.sin(angles)))
 
@@ -186,9 +201,7 @@ def main() -> None:
     for name, _ in compute_implementations:
         timing = compute_timings[name]
         pair_count = (
-            args.sequence_length
-            * (args.head_dim // 2)
-            * args.compute_iterations
+            args.sequence_length * (args.head_dim // 2) * args.compute_iterations
         )
         compute_results.append(
             {
@@ -201,20 +214,55 @@ def main() -> None:
         )
     compute_native_time = float(compute_results[0]["microseconds"])
     for row in compute_results:
-        row["speedup_vs_native_sfu"] = (
-            compute_native_time / float(row["microseconds"])
-        )
+        row["speedup_vs_native_sfu"] = compute_native_time / float(row["microseconds"])
 
+    trial_order = [
+        [
+            name
+            for name, _ in (
+                implementations if trial % 2 == 0 else implementations[::-1]
+            )
+        ]
+        for trial in range(args.trials)
+    ]
+    compute_trial_order = [
+        [
+            name
+            for name, _ in (
+                compute_implementations
+                if trial % 2 == 0
+                else compute_implementations[::-1]
+            )
+        ]
+        for trial in range(args.trials)
+    ]
     payload = {
-        "configuration": {
+        **rope_result_metadata(
+            "rope-table-and-repeated-evaluator",
+            repository_state=repository_state,
+            attestations=attestations,
+            source_bound=source_bound,
+        ),
+        "measurement": {
             "device_name": torch.cuda.get_device_name(device),
             "head_dim": args.head_dim,
             "sequence_length": args.sequence_length,
             "theta": args.theta,
             "compute_iterations": args.compute_iterations,
+            "warmup": args.warmup,
+            "table_repeats": args.repeats,
+            "compute_repeats": args.compute_repeats,
+            "trials": args.trials,
+            "summary_statistic": "median of per-trial means",
+            "table_measurement_order": trial_order,
+            "compute_measurement_order": compute_trial_order,
         },
         "table_generation": results,
         "compute_saturated": compute_results,
+        "results": {
+            "table_generation": results,
+            "compute_saturated": compute_results,
+        },
     }
 
     print(

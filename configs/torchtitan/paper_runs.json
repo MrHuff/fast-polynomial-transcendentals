@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "torchtitan_commit": "73a0e6979dd10b6b1904098eb3c8f62c18ab87ce",
+  "flash_attention_commit": "38afdedda24b0bf26e6904d3bed7807c19a6906e",
+  "tokenizer_snapshots": {
+    "b1_b3": {
+      "repository": "meta-llama/Llama-3.1-8B",
+      "revision": "d04e592bb4f6aa9cfee91e2e20afa771667e1d4b",
+      "destination": "assets/hf/Llama-3.1-8B",
+      "provenance": "New immutable public-protocol selection; the historical tokenizer snapshot was not retained."
+    },
+    "b4": {
+      "repository": "deepseek-ai/DeepSeek-V3.1-Base",
+      "revision": "d3d4eafdc470de44bbf6f0a74f852eb522357be8",
+      "destination": "assets/hf/DeepSeek-V3.1-Base",
+      "provenance": "New immutable public-protocol selection; the historical tokenizer snapshot was not retained."
+    }
+  },
+  "dataset_snapshots": {
+    "b1_b3_training_and_all_validation": {
+      "repository": "gmongaras/SlimPajama-627B_Reupload",
+      "revision": "c34c22dbb10ae6b264a2f357a909d1a537141b36",
+      "splits": ["train", "validation"],
+      "provenance": "Immutable public-protocol replacement for the removed cerebras/SlimPajama-627B Hub repository; byte identity with the historical input has not been established."
+    },
+    "b4_training": {
+      "repository": "allenai/olmo-mix-1124",
+      "revision": "8162bd79c6dc4fea470506531a8d791badc06b4b",
+      "splits": ["train"],
+      "provenance": "New source-derived public-protocol choice; the historical B4 corpus was not retained."
+    }
+  },
+  "cases": {
+    "b1": {
+      "model": "Llama 3 8B",
+      "configs": {
+        "native": "configs/torchtitan/b1_native.toml",
+        "polynomial": "configs/torchtitan/b1_polynomial.toml"
+      },
+      "pretraining": {
+        "world_size": 32,
+        "steps": 765000,
+        "local_batch_size": 1,
+        "global_batch_size": 32,
+        "sequence_length": 4096,
+        "tokens": 100270080000
+      },
+      "model_probe": {
+        "world_size": 1,
+        "steps": 100,
+        "local_batch_size": 4,
+        "global_batch_size": 4,
+        "sequence_length": 4096
+      }
+    },
+    "b2": {
+      "model": "Llama 3 8B",
+      "configs": {
+        "native": "configs/torchtitan/b2_native.toml",
+        "polynomial": "configs/torchtitan/b2_polynomial.toml"
+      },
+      "pretraining": {
+        "world_size": 32,
+        "steps": 765000,
+        "local_batch_size": 1,
+        "global_batch_size": 32,
+        "sequence_length": 4096,
+        "tokens": 100270080000
+      },
+      "model_probe": {
+        "world_size": 1,
+        "steps": 100,
+        "local_batch_size": 4,
+        "global_batch_size": 4,
+        "sequence_length": 4096
+      }
+    },
+    "b3": {
+      "model": "Llama 3 8B",
+      "configs": {
+        "native": "configs/torchtitan/b3_native.toml",
+        "polynomial": "configs/torchtitan/b3_polynomial.toml"
+      },
+      "pretraining": {
+        "world_size": 32,
+        "steps": 765000,
+        "local_batch_size": 1,
+        "global_batch_size": 32,
+        "sequence_length": 4096,
+        "tokens": 100270080000
+      },
+      "model_probe": {
+        "world_size": 1,
+        "steps": 100,
+        "local_batch_size": 4,
+        "global_batch_size": 4,
+        "sequence_length": 4096
+      }
+    },
+    "b4": {
+      "model": "DeepSeek-V3-shaped 27A4B",
+      "configs": {
+        "native": "configs/torchtitan/b4_native.toml",
+        "polynomial": "configs/torchtitan/b4_polynomial.toml"
+      },
+      "pretraining": {
+        "world_size": 32,
+        "steps": 191200,
+        "local_batch_size": 4,
+        "global_batch_size": 128,
+        "sequence_length": 4096,
+        "tokens": 100243865600,
+        "expert_parallel_degree": 8
+      },
+      "model_probe": {
+        "world_size": 4,
+        "steps": 100,
+        "local_batch_size": 1,
+        "global_batch_size": 4,
+        "sequence_length": 4096,
+        "expert_parallel_degree": 4
+      }
+    },
+    "b5": {
+      "model": "Llama 8B-shaped routed-exp2 probe",
+      "scope": "new-public-rerun",
+      "configs": {
+        "native": "configs/torchtitan/b5_native.toml",
+        "pwl2_safe_f16": "configs/torchtitan/b5_pwl2_safe_f16.toml",
+        "d2_safe": "configs/torchtitan/b5_d2_safe.toml"
+      },
+      "exp2_routes": {
+        "native": {
+          "backend": "d3",
+          "forward_frequency": 0,
+          "backward_frequency": 0
+        },
+        "pwl2_safe_f16": {
+          "backend": "pwl2_safe_f16",
+          "forward_frequency": 12,
+          "backward_frequency": 32
+        },
+        "d2_safe": {
+          "backend": "d2_safe",
+          "forward_frequency": 12,
+          "backward_frequency": 32
+        }
+      },
+      "model_probe": {
+        "world_size": 1,
+        "steps": 80,
+        "local_batch_size": 1,
+        "global_batch_size": 1,
+        "sequence_length": 4096,
+        "dataset": "c4_test",
+        "dataset_path": "torchtitan/tests/assets/c4_test",
+        "compile": false,
+        "steady_state_first_step": 20
+      },
+      "protocol_provenance": {
+        "model_shape_batch_sequence_steps_and_route_fractions": "retained-artifact",
+        "integer_route_frequencies": "retained-component-artifact-and-source-derived",
+        "compile_disabled": "historical-source-derived-not-runtime-attested",
+        "steady_state_first_step": "retained-for-d2-and-new-public-choice-for-pwl2",
+        "seed_dataset_tokenizer_and_torchtitan_runtime": "new-public-protocol"
+      },
+      "retained_evidence": [
+        "evidence/report-data/b5_exp2_pwl2_safe_8b_probe_fwd_bwd_gb200.json",
+        "evidence/report-data/b5_exp2_d2_safe_8b_probe_fwd_bwd_gb200.json",
+        "evidence/report-data/b5_exp2_apples_to_apples_d3_pwl2_d2_gb200.json"
+      ]
+    }
+  },
+  "historical_boundaries": {
+    "validation": "The paper retained training loss only; validation is an optional public rerun protocol.",
+    "seed": "Seed 1234 is fixed for the public paired rerun; the historical long-run seed was not retained.",
+    "b1_b3_dataset": "The original cerebras/SlimPajama-627B Hub repository is no longer anonymously available. The public recipe pins a community re-upload; its byte identity and streaming order relative to the historical shuffled loader are not established.",
+    "b4_dataset": "The retained evidence does not uniquely establish the historical B4 corpus or data order. The public recipe selects the pinned OLMo Mix snapshot as a source-derived candidate.",
+    "b4_microbatch": "The historical B4 local-microbatch and gradient-accumulation split was not retained. The public 32-rank recipe declares local batch 4 and global batch 128.",
+    "b5_public_probe": "The B5 recipe is a new TorchTitan model probe that preserves the retained Llama-8B shape, 4096-token sequence, batch size 1, 80-step horizon, and three routed-exp2 schedules. Compile-disabled execution is source-derived rather than runtime-attested. The recipe does not recreate proprietary gc-training plumbing or establish the historical initialization."
+  }
+}

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
 """Fit the two-FMA range-reduced polynomial used by FlashSigmoid.
 
 The FlashSigmoid bias is ``-log(sequence_length)``. For normalized QK scores,
@@ -13,12 +16,20 @@ runtime can independently select a D3 probability recomputation for backward.
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import struct
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
+import sys
 
 import numpy as np
 from scipy.optimize import differential_evolution, minimize
+
+try:
+    from .fit_provenance import bind_fit_payload, build_fit_provenance
+except ImportError:  # Direct script execution.
+    from fit_provenance import bind_fit_payload, build_fit_provenance
 
 
 GENERIC_EXP2_D2 = (1.0, 0.6657850742340088, 0.33010703325271606)
@@ -52,9 +63,9 @@ class FlashSigmoidD2Fit:
         exp2_input = self.scores * math.log2(math.e)
         self.exponents = np.floor(exp2_input).astype(np.int64)
         self.fractions = exp2_input - self.exponents
-        self.scales = np.ldexp(
-            np.ones_like(self.scores), self.exponents
-        ) / sequence_length
+        self.scales = (
+            np.ldexp(np.ones_like(self.scores), self.exponents) / sequence_length
+        )
 
     @staticmethod
     def round_coefficients(parameters: np.ndarray) -> np.ndarray:
@@ -132,13 +143,50 @@ def fit(args: argparse.Namespace) -> tuple[np.ndarray, FitMetrics]:
     return coefficients, problem.metrics(coefficients)
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sequence-length", type=int, default=4096)
     parser.add_argument("--score-sigma", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=1234)
     parser.add_argument("--maxiter", type=int, default=300)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--json-out",
+        type=Path,
+        help="Optional caller-selected path for coefficients and fit metrics.",
+    )
+    return parser.parse_args(argv)
+
+
+def result_document(
+    args: argparse.Namespace,
+    coefficients: np.ndarray,
+    metrics: FitMetrics,
+) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "fit": "flash-sigmoid-sequence-specific-exp2-d2",
+        "sequence_length": args.sequence_length,
+        "score_sigma": args.score_sigma,
+        "seed": args.seed,
+        "maxiter": args.maxiter,
+        "coefficients_float32": [float(value) for value in coefficients],
+        "ptx_hex_high_to_low": [float32_hex(value) for value in reversed(coefficients)],
+        "metrics": asdict(metrics),
+    }
+
+
+def main(argv: list[str] | None = None) -> None:
+    raw_arguments = list(sys.argv[1:] if argv is None else argv)
+    args = parse_args(argv)
+    provenance = (
+        build_fit_provenance(
+            script=Path(__file__),
+            arguments=raw_arguments,
+            distributions=("numpy", "scipy"),
+        )
+        if args.json_out is not None
+        else None
+    )
 
     coefficients, metrics = fit(args)
     print("coefficients:", tuple(float(value) for value in coefficients))
@@ -148,6 +196,15 @@ def main() -> None:
     print("central_max_relative:", f"{metrics.central_max_relative:.9g}")
     print("endpoint_jump:", f"{metrics.endpoint_jump:.9g}")
     print("minimum_mantissa:", f"{metrics.minimum_mantissa:.9g}")
+    if args.json_out is not None:
+        document = result_document(args, coefficients, metrics)
+        bind_fit_payload(document, provenance)
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(
+            json.dumps(document, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        print(f"wrote: {args.json_out}")
 
 
 if __name__ == "__main__":

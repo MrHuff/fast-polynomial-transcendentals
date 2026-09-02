@@ -12,12 +12,24 @@
     },
     "portable_analysis": {
       "python": ">=3.11",
-      "requirements": ["numpy", "pandas", "matplotlib"],
+      "requirements": ["numpy", "pandas", "matplotlib", "scipy"],
       "status": "version ranges are install guidance, not a historical environment lock"
     },
+    "public_torchtitan_v0_2_2": {
+      "python": "3.12 recommended",
+      "torch": "2.12.0.dev20260220+cu126",
+      "torchao": "0.17.0.dev20260220+cu126",
+      "torchtitan_commit": "73a0e6979dd10b6b1904098eb3c8f62c18ab87ce",
+      "tokenizer_pins": "src/sfu_repro/torchtitan/pins.py",
+      "dataset_pins": "configs/torchtitan/paper_runs.json",
+      "requirements": "configs/torchtitan/pytorch-v0.2.2-cu126.requirements.txt",
+      "status": "official TorchTitan v0.2.2 release stack selected for new public reruns; not the historical proprietary runtime and not yet GB200-attested in this repository"
+    },
     "open_weight": {
-      "requirements": ["torch", "transformers", "lm-eval", "spline_ops"],
-      "status": "historical runtime versions were not retained; model revisions and source-derived protocol are in configs/open_weight_paper.json and evidence/report-data/open_weight_eval_protocol.json"
+      "requirements": "configs/eval_environments/profiles.json",
+      "task_protocol": "configs/lm_eval_paper_tasks.json",
+      "lm_eval_commit": "6d642546f4688648fced259eb3302efd36ece5af",
+      "status": "source-derived per-model stacks plus new public model, evaluator, task-dataset, seed, and few-shot selections are pinned; the final historical PyTorch/CUDA runtime, historical task snapshots, and two historical Qwen revisions were not retained"
     }
   }
 }

@@ -4,6 +4,8 @@ This document records where the standalone implementation and retained evidence
 came from, and which claims the available provenance supports. Commit hashes
 identify source snapshots; they do not repair missing commands, dirty-worktree
 deltas, runtime metadata, or external assets.
+See the [experiment matrix](EXPERIMENT_MATRIX.md) for the corresponding public
+commands and hardware requirements.
 
 ## Provenance classes
 
@@ -26,7 +28,9 @@ The standalone extraction was audited against these source revisions:
 |---|---|---|
 | `low-precision-functions` | `cbe2fc03be4b454563f4617286e867db06f53bbb` | Cleanup baseline for fitting, kernels, evidence, and paper support |
 | `low-bits-training` | `f4cef431962f1863d63ff7b605c266a7bf5d2833` | Cleanup baseline for reusable model and benchmark plumbing |
-| patched FlashAttention-4 | `38afdedda24b0bf26e6904d3bed7807c19a6906e` | Attention integration expected by B2, B3, and fractional-`exp2` probes |
+| patched FlashAttention-4 | `38afdedda24b0bf26e6904d3bed7807c19a6906e` | Attention integration expected by B2, B3, and B5 fractional-`exp2` probes |
+| upstream TorchTitan v0.2.2 | `73a0e6979dd10b6b1904098eb3c8f62c18ab87ce` | Public distributed training, checkpointing, validation, and model definitions |
+| upstream lm-eval v0.4.12 | `6d642546f4688648fced259eb3302efd36ece5af` | Public downstream task definitions and evaluator runtime |
 
 The first repository had local public-release edits after its named commit.
 Those edits are not treated as historical experiment provenance. The new
@@ -42,7 +46,12 @@ research repository's full development history.
 | `scripts/benchmark_open_weights.py` and `scripts/run_open_weight_suite.py` | Historical Hugging Face evaluation and model-patching utilities | Removed campaign, service, cluster, and repository-layout coupling; kept explicit, local patching interfaces and a declarative protocol |
 | `scripts/benchmark_components.py` | Historical B1--B4 phase-probe harness | Replaced training-repository imports with `sfu_repro` interfaces |
 | `scripts/benchmark_fa4_exp2_mix.py` | Historical fractional-`exp2` attention probe | Replaced training-repository imports and local path injection |
+| `scripts/audit_b3_deployed_fit.py` | Exact constants and packed-BF16 instruction program in patched FlashAttention-4 | New source-bound verifier; does not reconstruct the missing coefficient-selection program |
+| `scripts/summarize_open_weight_results.py` | Paper aggregation semantics and the new public downstream protocol | New validator/aggregator for public-run JSON; does not consume or certify historical W&B summaries |
+| `src/sfu_repro/torchtitan/`, `configs/torchtitan/`, and `scripts/run_torchtitan.py` | Public TorchTitan v0.2.2 APIs plus the extracted B1--B5 kernel adapters | New public rerun protocol; replaces proprietary launch/data plumbing and preserves the declared matched operation boundaries and B5 routed-`exp2` schedules |
+| `src/sfu_repro/rope/` and `autonumerics_zero/spline_ops/sincos_kernels.cu` | `low-bits-training` commit `1461fd63fdcddb9ef27367a60036dee8e1a11159` and retained low-precision kernel sources | Standalone public fit, numerical, cache/HBM, repeated-evaluation, and fused-RoPE paths; original lattice-search and runtime record remain absent |
 | `autonumerics_zero/` | Selected files from the same path in `low-precision-functions` | Curated to fitting, kernel, and isolated experiment code relevant to the paper |
+| `autonumerics_zero/evolution/fit_gelu_fp16.py` | `low-precision-functions` commit `eb9d1aac9c0d9a2fb5f375f8f35c2c3e1603d872`, `autonumerics_zero/experiments/fused_gemm/fit_gelu.py` | Compact standalone adapter over the unchanged fitting dependency; preserves the historical sweep and writes only the caller-selected JSON |
 | `evidence/report-data/` | `report/data/` in `low-precision-functions` | Copied as historical evidence; not relabelled as newly generated output |
 
 One machine-specific source path in
@@ -61,10 +70,11 @@ FlashAttention-4 code and Python packages retain their own licenses.
 | `b1_b4_100_iteration_phase_probes_gb200.json` | Root revision `f0d890498ec338ff5a1af682d1b73cc9ba83a416` | Artifact records a dirty worktree; the complete local delta is unavailable |
 | `b1_b4_full_model_100step_gb200.json` | Materialized case settings and step measurements | Original complete invocation, raw logs, and immutable source binding are absent |
 | `b4_27a4b_local_100step_gb200.json` | Root `f0d890498ec338ff5a1af682d1b73cc9ba83a416`; low-bits `89694ba4e53300d71fad5672f3a15a5f533317b5`; command embedded in artifact | Distributed harness had uncommitted changes; only aggregate data and raw-log hashes survive |
-| `sollya_eval_results.csv` and `open_weight_eval_protocol.json` | Root `cdc11310a522b2b3ac7230fbba0efc7e7022e20d`; low-bits `393b69e2993ef00c812dfc87ac5f93c146159f45` | Protocol is source-derived, not runtime-attested; original per-model outputs, task shards, and complete hardware metadata are absent |
+| `sollya_eval_results.csv` and `open_weight_eval_protocol.json` | Root `cdc11310a522b2b3ac7230fbba0efc7e7022e20d`; low-bits `393b69e2993ef00c812dfc87ac5f93c146159f45` | Protocol is source-derived, not runtime-attested; two Qwen checkpoint revisions, task-dataset commits, sampled few-shot identities, raw per-model result shards, and the complete runtime are absent |
 | `b1_b4_paired_loss_curves.csv` and provenance JSON | Materialized sampled histories and source snapshot metadata | Original launch manifests, complete configs, checkpoint hashes, seeds, and data-order proof are incomplete or absent |
 | `sollya_device_bf16.json` | Retained fitting comparison artifact | Producing environment and immutable source binding are not fully recorded |
 | Fractional-`exp2` JSON artifacts | Retained fits and GB200 measurements | Most artifacts are not bound to an immutable clean source tree; one integrated artifact records requested and observed clocks |
+| `b5_exp2_pwl2_safe_8b_probe_fwd_bwd_gb200.json` and `b5_exp2_d2_safe_8b_probe_fwd_bwd_gb200.json` | Retained Llama-8B probe aggregates and routed schedules | The proprietary `gc-training` plumbing, historical initialization, raw logs, and immutable source binding were not retained |
 
 The historical GLM open-weight row depends on the older low-bits revision shown
 above. The cleanup baseline does not reproduce the same router intervention.
@@ -78,11 +88,73 @@ from one historical baseline trajectory and one historical polynomial
 trajectory per case. Checkpoints or minibatches along one trajectory are not
 independent repetitions.
 
-This repository has no exact pre-training rerun target. It does not distribute
-the training data, checkpoints, original distributed launcher, or enough
-configuration to establish identical initialization and data order. Any future
-large-scale rerun needs a new manifest, explicit licenses for every model and
-dataset asset, and newly recorded outputs.
+The repository now has a declared public TorchTitan rerun target for all four
+cases. Native and polynomial arms can load one case-specific seed checkpoint,
+and the configs specify the model, optimizer, parallelism, token horizon, and
+kernel boundary. This protocol creates new evidence.
+
+B5 has a separate three-arm public model-probe target. It preserves the
+retained Llama-8B shape, batch size 1, sequence length 4096, 80-step horizon,
+and the retained route fractions. The integer `d3:0:0`,
+`pwl2_safe_f16:12:32`, and `d2_safe:12:32` routes are also present in the
+retained component artifact. Compile-disabled execution is source-derived, not
+runtime-attested by the compact model-probe artifacts. The public seed, C4 test
+fixture, tokenizer, and TorchTitan runtime are new protocol choices. The D2
+artifact declares step 20 as its steady-state boundary; applying the same
+boundary to PWL2 is a new public aggregation choice. This is a new TorchTitan
+execution path, not a recreation of the proprietary `gc-training` runtime or
+its historical initialization.
+
+It is not an exact replay of the historical trajectories. The retained record
+does not establish the historical seed, initial checkpoint, complete data
+order, tokenizer snapshot, resolved B2/B3 compile setting, or B4 corpus and
+microbatch split. Seed 1234, the immutable SlimPajama re-upload, the tokenizer
+commits, and the OLMo Mix snapshot are declared public choices. The original
+Cerebras SlimPajama Hub repository is no longer anonymously available; byte
+identity between the re-upload and historical input is unverified, and the
+new streaming order differs from the historical shuffled loader. The B3
+adapter explicitly resets the added query/key norms after materialization; the
+historical inserted norm initialization was not retained. Validation was
+disabled historically and is offered only as a new held-out public protocol.
+
+Every large-scale rerun must preserve its seed checkpoint, selected base TOML,
+all effective overrides, dataset and tokenizer revisions or hashes, first-batch
+hashes, checkpoint/resume state, software/container identity, and raw outputs.
+The public launcher recursively hashes each shared seed-checkpoint tree,
+records that identity in an immutable launch receipt, and the paired exporter
+requires the native and polynomial receipts to agree.
+
+## Fitting arithmetic boundary
+
+The checked-in BF16 fitting sweep reproduces the historical search procedure.
+Its Horner replay rounds multiplication and addition separately. The deployed
+CUDA kernels use packed BF16 fused multiply-add instructions with one rounding.
+Device-kernel accuracy outputs are therefore the evidence for deployed error;
+the fitting replay must not be described as an instruction-exact emulator.
+
+The FP16 ERF/GELU fitter was recovered from
+`low-precision-functions` commit
+`eb9d1aac9c0d9a2fb5f375f8f35c2c3e1603d872`. Its
+`constrained_ls_fitter.py` dependency is byte-identical to the copy used by the
+standalone adapter. The adapter preserves the historical ranges, grid, D3--D6
+degree sweep, and split-rounding FP16 replay while avoiding automatic writes
+to generated headers or retained evidence. The deployed BF16 ERF/GELU structs
+were mechanically initialized from those FP16-derived coefficients.
+
+The B3 direct-sigmoid D3 forward constants and factored-D4 derivative
+constants are source-bound to patched FlashAttention-4 commit
+`38afdedda24b0bf26e6904d3bed7807c19a6906e`. The corresponding kernel source is
+present. The original program that selected those constants was not retained,
+so its objective, weighting, sample set, and optimization path cannot be
+replayed. `scripts/audit_b3_deployed_fit.py` verifies the deployed constants
+and packed-BF16 arithmetic on a declared grid; it is not a fitter. See
+[the B3 audit note](B3_DEPLOYED_FIT_AUDIT.md).
+
+The public paired sine/cosine subtree preserves least-squares and Sollya fit
+programs and the deployed kernel coefficients. The local FP16-lattice search
+that produced the retained packed coefficients was not retained. Its public
+fit commands are therefore new, declared fitting runs rather than a recovery
+of that missing search.
 
 ## Model and dataset provenance
 
@@ -94,11 +166,41 @@ tokenizer revisions and comply with each provider's terms. Dataset and task
 versions, preprocessing, few-shot examples, and evaluator revision are part of
 the scientific provenance.
 
+The downstream public protocol pins all five model/tokenizer repositories to
+full commits. The Qwen2.5 and Qwen3 commits were selected on 2 September 2026
+because their historical revisions were not retained; the distinction is
+machine-readable in `configs/open_weight_paper.json`. The task names,
+few-shot counts, and lm-eval package were retained. Historical task-dataset
+revisions, sampled few-shot identities, raw per-model result shards, and the
+complete runtime remain unavailable.
+
+For new public reruns, `configs/lm_eval_paper_tasks.json` binds the eight paper
+tasks to lm-eval v0.4.12 at its release commit, fixed evaluator seeds, and full
+Hugging Face dataset commits. The runner checks the lm-eval checkout before
+evaluation, injects every dataset revision at load time, and aborts if a task
+uses an undeclared dataset. Per-example sample logging is enabled for the paper
+quality suite. These choices make the new protocol repeatable; they are not
+retroactive evidence about the historical campaign.
+
+The public runner checks the selected per-model package profile and pinned
+local source revisions before a measured run. The result summarizer repeats
+those checks, joins quality and throughput JSON by immutable model revision and
+variant, and requires the complete declared task/phase set. Its CSV and
+Markdown outputs summarize new public measurements only; they do not recover
+the missing inputs or raw outputs behind the historical paper table.
+
 ## Producing new evidence
 
-New results should use the common envelope in `schemas/result-v1.json` and add
-experiment-specific fields without deleting required metadata. Store the
-complete command as an argument array, not a shell string containing secrets.
-Hash material inputs and outputs. Record a dirty tree as dirty; do not replace
-that fact with the nearest commit hash. Preserve raw per-round samples whenever
-practical.
+New benchmark drivers should use the envelope in `schemas/result-v1.json` and
+add experiment-specific fields without deleting required metadata. Fitting and
+TorchTitan tools may retain their documented task-specific JSON layouts. The
+`fit_all_degrees*.py`, `fit_gelu_fp16.py`, `fit_fa4_tanh_backends.py`, and the
+two fractional-`exp2` fitters retain their numerical payload keys and add
+`_provenance` with a normalized command, Git revision and dirty state, runtime
+versions, source hashes, a canonical numerical-payload hash, and an explicit
+generated-fit scope. The Sollya generator also hashes its generated header.
+That scope is not evidence that coefficients were promoted into a deployed
+kernel. Store the complete command as an argument array, not a shell string
+containing secrets. Hash material inputs and outputs. Record a dirty tree as
+dirty; do not replace that fact with the nearest commit hash. Preserve raw
+per-round samples whenever practical.

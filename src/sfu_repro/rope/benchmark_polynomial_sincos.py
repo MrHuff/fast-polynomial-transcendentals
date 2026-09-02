@@ -7,12 +7,21 @@
 import argparse
 import json
 import math
+import platform
 import statistics
+import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
 
 import torch
+
+from sfu_repro.source_attestation import (
+    attest_module_source,
+    git_state,
+    require_bound_attestations,
+    safe_command,
+)
 
 from .polynomial_sincos import (
     SOLLYA_D3_D4,
@@ -23,6 +32,82 @@ from .polynomial_sincos import (
 
 
 TensorFunction = Callable[[torch.Tensor], torch.Tensor]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+
+
+def attest_rope_sources(
+    *, spline_ops=None, allow_unbound_source: bool
+) -> tuple[dict[str, object], dict[str, dict[str, object]], bool]:
+    repository_state = git_state(REPOSITORY_ROOT)
+    attestations: dict[str, dict[str, object]] = {
+        "sfu_repro": {
+            "source_revision": repository_state["revision"],
+            "expected_source_revision": repository_state["revision"],
+            "source_dirty": repository_state["dirty"],
+            "source_untracked_files": repository_state["untracked_files"],
+            "bound": bool(
+                repository_state["revision"] is not None
+                and repository_state["dirty"] is False
+            ),
+        }
+    }
+    if spline_ops is not None:
+        attestations["spline_ops"] = attest_module_source(
+            "spline_ops",
+            source_checkout=REPOSITORY_ROOT / "autonumerics_zero" / "spline_ops",
+            repository_root=REPOSITORY_ROOT,
+            expected_revision=repository_state["revision"],
+            distribution="sfu-spline-ops",
+            expected_version="0.1.0",
+            module=spline_ops,
+        )
+    require_bound_attestations(attestations, allow_unbound=allow_unbound_source)
+    return (
+        repository_state,
+        attestations,
+        all(bool(item["bound"]) for item in attestations.values()),
+    )
+
+
+def rope_result_metadata(
+    experiment_id: str,
+    *,
+    repository_state: dict[str, object],
+    attestations: dict[str, dict[str, object]],
+    source_bound: bool,
+) -> dict[str, object]:
+    environment: dict[str, object] = {
+        "python": platform.python_version(),
+        "torch": torch.__version__,
+        "cuda": torch.version.cuda,
+    }
+    if torch.cuda.is_available():
+        properties = torch.cuda.get_device_properties(0)
+        environment.update(
+            {
+                "gpu": properties.name,
+                "compute_capability": list(torch.cuda.get_device_capability(0)),
+                "total_memory_bytes": properties.total_memory,
+            }
+        )
+    return {
+        "schema_version": 1,
+        "experiment": {
+            "id": experiment_id,
+            "provenance_class": (
+                "new-measurement" if source_bound else "diagnostic-unbound-source"
+            ),
+            "command": safe_command(
+                [Path(sys.executable).name, *sys.argv], REPOSITORY_ROOT
+            ),
+        },
+        "source": {
+            "repository": "https://github.com/MrHuff/fast-polynomial-transcendentals",
+            **repository_state,
+            "module_origins": attestations,
+        },
+        "environment": environment,
+    }
 
 
 def make_rope_angles(
@@ -177,6 +262,7 @@ def benchmark(
         "microseconds": statistics.median(samples),
         "microseconds_min": min(samples),
         "microseconds_max": max(samples),
+        "samples_us": samples,
     }
     return timing, output
 
@@ -193,6 +279,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repeats", type=int, default=100)
     parser.add_argument("--trials", type=int, default=5)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--allow-unbound-source",
+        action="store_true",
+        help="Permit a diagnostic result from dirty or non-local source.",
+    )
     return parser.parse_args()
 
 
@@ -218,6 +309,7 @@ def main() -> None:
         ("polynomial_d7_accurate", polynomial_d7_accurate),
         ("polynomial_d7_fast", polynomial_d7_fast),
     ]
+    spline_ops = None
     if device.type == "cuda":
         spline_ops = load_spline_ops()
         implementations.extend(
@@ -258,8 +350,18 @@ def main() -> None:
         }
         results.append(result)
 
+    repository_state, attestations, source_bound = attest_rope_sources(
+        spline_ops=spline_ops,
+        allow_unbound_source=args.allow_unbound_source,
+    )
     payload = {
-        "configuration": {
+        **rope_result_metadata(
+            "rope-portable-numerical-check",
+            repository_state=repository_state,
+            attestations=attestations,
+            source_bound=source_bound,
+        ),
+        "measurement": {
             "device": str(device),
             "device_name": (
                 torch.cuda.get_device_name(device) if device.type == "cuda" else "CPU"
@@ -269,6 +371,10 @@ def main() -> None:
             "theta": args.theta,
             "angle_count": angles.numel(),
             "angle_max": angles.max().item(),
+            "warmup": args.warmup,
+            "repeats": args.repeats,
+            "trials": args.trials,
+            "summary_statistic": "median of per-trial means",
         },
         "results": results,
     }

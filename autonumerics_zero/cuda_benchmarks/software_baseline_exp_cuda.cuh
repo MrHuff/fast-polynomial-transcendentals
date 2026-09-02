@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+// Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 #define SOFTWARE_BASELINE_EXP_CUDA_CUH
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>

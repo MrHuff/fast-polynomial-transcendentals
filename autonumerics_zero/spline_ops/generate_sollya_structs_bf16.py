@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
 """Generate Sollya-based BF16 spline structs plus comparison metadata.
 
 This script:
@@ -12,12 +15,14 @@ This script:
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 from typing import Callable
 
 import numpy as np
@@ -25,13 +30,32 @@ import numpy as np
 try:
     import torch
 except ImportError as exc:  # pragma: no cover - environment issue
-    raise SystemExit("This script requires PyTorch for BF16 coefficient rounding.") from exc
+    raise SystemExit(
+        "This script requires PyTorch for BF16 coefficient rounding."
+    ) from exc
 
 
 ROOT = Path(__file__).resolve().parents[2]
+EVOLUTION_ROOT = ROOT / "autonumerics_zero/evolution"
+if str(EVOLUTION_ROOT) not in sys.path:
+    sys.path.insert(0, str(EVOLUTION_ROOT))
+
+from fit_provenance import (  # noqa: E402
+    bind_fit_payload,
+    build_fit_provenance,
+    sha256_file,
+)
+
+
 CURRENT_HEADER = Path(__file__).resolve().with_name("spline_structs_odd_bf16.cuh")
 SOLLYA_HEADER = Path(__file__).resolve().with_name("spline_structs_sollya_bf16.cuh")
-OUT_JSON = ROOT / "autonumerics_zero" / "cuda_benchmarks" / "analysis_results" / "sollya_device_bf16.json"
+OUT_JSON = (
+    ROOT
+    / "autonumerics_zero"
+    / "cuda_benchmarks"
+    / "analysis_results"
+    / "sollya_device_bf16.json"
+)
 
 
 def bf16_round(value: float) -> float:
@@ -58,10 +82,14 @@ def gelu(xs: np.ndarray) -> np.ndarray:
 
 def gelu_grad(xs: np.ndarray) -> np.ndarray:
     erf = np.vectorize(math.erf)
-    return 0.5 * (1.0 + erf(xs / math.sqrt(2.0))) + xs / math.sqrt(2.0 * math.pi) * np.exp(-0.5 * xs * xs)
+    return 0.5 * (1.0 + erf(xs / math.sqrt(2.0))) + xs / math.sqrt(
+        2.0 * math.pi
+    ) * np.exp(-0.5 * xs * xs)
 
 
-def eval_centered_odd(xs: np.ndarray, coeffs: list[float], clamp: float, offset: float = 0.5) -> np.ndarray:
+def eval_centered_odd(
+    xs: np.ndarray, coeffs: list[float], clamp: float, offset: float = 0.5
+) -> np.ndarray:
     xs = np.asarray(xs)
     t = np.minimum(np.abs(xs), clamp)
     poly = np.zeros_like(t)
@@ -70,7 +98,9 @@ def eval_centered_odd(xs: np.ndarray, coeffs: list[float], clamp: float, offset:
     return offset + np.sign(xs) * t * poly
 
 
-def eval_odd_factorized(xs: np.ndarray, coeffs: list[float], clamp: float) -> np.ndarray:
+def eval_odd_factorized(
+    xs: np.ndarray, coeffs: list[float], clamp: float
+) -> np.ndarray:
     xs = np.asarray(xs)
     t = np.minimum(np.abs(xs), clamp)
     poly = np.zeros_like(t)
@@ -98,7 +128,9 @@ def eval_gelu_forward(xs: np.ndarray, coeffs: list[float], clamp: float) -> np.n
     return xs * (0.5 + np.sign(xs) * t * poly)
 
 
-def eval_swish_composed(xs: np.ndarray, sigmoid_coeffs: list[float], clamp: float) -> np.ndarray:
+def eval_swish_composed(
+    xs: np.ndarray, sigmoid_coeffs: list[float], clamp: float
+) -> np.ndarray:
     return xs * eval_centered_odd(xs, sigmoid_coeffs, clamp, offset=0.5)
 
 
@@ -191,16 +223,24 @@ BASE_SPECS = (
 SWISH_FWD_DEGREES = (3, 4, 5, 6)
 
 
-def parse_current_struct(name: str, text: str) -> dict[str, object]:
+def parse_current_struct(
+    name: str,
+    text: str,
+    source: Path = CURRENT_HEADER,
+) -> dict[str, object]:
     pattern = re.compile(rf"struct {re.escape(name)} \{{(?P<body>.*?)\n\}};", re.DOTALL)
     match = pattern.search(text)
     if match is None:
-        raise KeyError(f"Could not find struct {name} in {CURRENT_HEADER}")
+        raise KeyError(f"Could not find struct {name} in {source}")
     body = match.group("body")
-    clamp_match = re.search(r"__hmin2\(abs_val, __float2bfloat162_rn\(([-+0-9.eE]+)f\)\)", body)
+    clamp_match = re.search(
+        r"__hmin2\(abs_val, __float2bfloat162_rn\(([-+0-9.eE]+)f\)\)", body
+    )
     if clamp_match is None:
         raise ValueError(f"Could not parse clamp for {name}")
-    coeff_matches = re.findall(r"c(\d+) = __float2bfloat162_rn\(([-+0-9.eE]+)f\);", body)
+    coeff_matches = re.findall(
+        r"c(\d+) = __float2bfloat162_rn\(([-+0-9.eE]+)f\);", body
+    )
     if not coeff_matches:
         raise ValueError(f"Could not parse coefficients for {name}")
     max_idx = max(int(idx_str) for idx_str, _ in coeff_matches)
@@ -214,7 +254,9 @@ def run_sollya(expr: str, monomials: list[int], clamp: float) -> list[float]:
     lower = "1b-20" if min(monomials) > 0 else "0"
     monomial_arg = "[|" + ",".join(str(m) for m in monomials) + "|]"
     format_arg = "[|" + ",".join("8" for _ in monomials) + "|]"
-    script_lines = [f"f = fpminimax({expr}, {monomial_arg}, {format_arg}, [{lower};{clamp}], absolute);"]
+    script_lines = [
+        f"f = fpminimax({expr}, {monomial_arg}, {format_arg}, [{lower};{clamp}], absolute);"
+    ]
     for monomial in monomials:
         script_lines.append(f"print(coeff(f,{monomial}));")
     script_lines.append("quit;")
@@ -235,11 +277,29 @@ def run_sollya(expr: str, monomials: list[int], clamp: float) -> list[float]:
         except ValueError:
             continue
     if len(coeffs) != len(monomials):
-        raise RuntimeError(f"Unexpected Sollya output for {expr}: stdout={proc.stdout!r} stderr={proc.stderr!r}")
+        raise RuntimeError(
+            f"Unexpected Sollya output for {expr}: stdout={proc.stdout!r} stderr={proc.stderr!r}"
+        )
     return coeffs
 
 
-def max_error(kind: str, coeffs: list[float], clamp: float, target: Callable[[np.ndarray], np.ndarray]) -> float:
+def sollya_version() -> str | None:
+    completed = subprocess.run(
+        ["sollya", "--version"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    rendered = " ".join((completed.stdout or completed.stderr).split())
+    return rendered or None
+
+
+def max_error(
+    kind: str,
+    coeffs: list[float],
+    clamp: float,
+    target: Callable[[np.ndarray], np.ndarray],
+) -> float:
     xs = np.linspace(-clamp, clamp, 20001)
     truth = target(xs)
     if kind == "centered_odd":
@@ -261,7 +321,9 @@ def format_coeff(value: float) -> str:
     return f"{value:.10f}f"
 
 
-def emit_centered_odd_struct(name: str, coeffs: list[float], clamp: float, max_err: float) -> str:
+def emit_centered_odd_struct(
+    name: str, coeffs: list[float], clamp: float, max_err: float
+) -> str:
     lines = [
         f"struct {name} {{",
         f"    // Clamp={clamp:.4f}, max_err={max_err:.6f} (Sollya BF16, centered odd)",
@@ -275,7 +337,9 @@ def emit_centered_odd_struct(name: str, coeffs: list[float], clamp: float, max_e
         "",
     ]
     for idx, coeff in enumerate(coeffs, start=1):
-        lines.append(f"        __nv_bfloat162 c{idx} = __float2bfloat162_rn({format_coeff(coeff)});")
+        lines.append(
+            f"        __nv_bfloat162 c{idx} = __float2bfloat162_rn({format_coeff(coeff)});"
+        )
     lines += [
         "",
         f"        __nv_bfloat162 h = c{len(coeffs)};",
@@ -296,7 +360,9 @@ def emit_centered_odd_struct(name: str, coeffs: list[float], clamp: float, max_e
     return "\n".join(lines)
 
 
-def emit_odd_factorized_struct(name: str, coeffs: list[float], clamp: float, max_err: float) -> str:
+def emit_odd_factorized_struct(
+    name: str, coeffs: list[float], clamp: float, max_err: float
+) -> str:
     lines = [
         f"struct {name} {{",
         f"    // Clamp={clamp:.4f}, max_err={max_err:.6f} (Sollya BF16, odd factorized)",
@@ -310,7 +376,9 @@ def emit_odd_factorized_struct(name: str, coeffs: list[float], clamp: float, max
         "",
     ]
     for idx, coeff in enumerate(coeffs, start=1):
-        lines.append(f"        __nv_bfloat162 c{idx} = __float2bfloat162_rn({format_coeff(coeff)});")
+        lines.append(
+            f"        __nv_bfloat162 c{idx} = __float2bfloat162_rn({format_coeff(coeff)});"
+        )
     lines += [
         "",
         f"        __nv_bfloat162 h = c{len(coeffs)};",
@@ -332,7 +400,9 @@ def emit_odd_factorized_struct(name: str, coeffs: list[float], clamp: float, max
     return "\n".join(lines)
 
 
-def emit_even_struct(name: str, coeffs: list[float], clamp: float, max_err: float) -> str:
+def emit_even_struct(
+    name: str, coeffs: list[float], clamp: float, max_err: float
+) -> str:
     lines = [
         f"struct {name} {{",
         f"    // Clamp={clamp:.4f}, max_err={max_err:.6f} (Sollya BF16, even)",
@@ -345,7 +415,9 @@ def emit_even_struct(name: str, coeffs: list[float], clamp: float, max_err: floa
         "",
     ]
     for idx, coeff in enumerate(coeffs):
-        lines.append(f"        __nv_bfloat162 c{idx} = __float2bfloat162_rn({format_coeff(coeff)});")
+        lines.append(
+            f"        __nv_bfloat162 c{idx} = __float2bfloat162_rn({format_coeff(coeff)});"
+        )
     lines += [
         "",
         f"        __nv_bfloat162 r = c{len(coeffs) - 1};",
@@ -361,7 +433,9 @@ def emit_even_struct(name: str, coeffs: list[float], clamp: float, max_err: floa
     return "\n".join(lines)
 
 
-def emit_gelu_forward_struct(name: str, coeffs: list[float], clamp: float, max_err: float) -> str:
+def emit_gelu_forward_struct(
+    name: str, coeffs: list[float], clamp: float, max_err: float
+) -> str:
     lines = [
         f"struct {name} {{",
         f"    // Clamp={clamp:.4f}, max_err={max_err:.6f} (Sollya BF16, direct GeLU)",
@@ -375,7 +449,9 @@ def emit_gelu_forward_struct(name: str, coeffs: list[float], clamp: float, max_e
         "",
     ]
     for idx, coeff in enumerate(coeffs, start=1):
-        lines.append(f"        __nv_bfloat162 c{idx} = __float2bfloat162_rn({format_coeff(coeff)});")
+        lines.append(
+            f"        __nv_bfloat162 c{idx} = __float2bfloat162_rn({format_coeff(coeff)});"
+        )
     lines += [
         "",
         f"        __nv_bfloat162 h = c{len(coeffs)};",
@@ -410,8 +486,14 @@ def emit_swish_composed_struct(name: str, dependency: str) -> str:
     )
 
 
-def generate() -> dict[str, object]:
-    current_text = CURRENT_HEADER.read_text()
+def generate(
+    *,
+    current_header: Path = CURRENT_HEADER,
+    sollya_header: Path = SOLLYA_HEADER,
+    out_json: Path = OUT_JSON,
+    provenance: dict[str, object] | None = None,
+) -> dict[str, object]:
+    current_text = current_header.read_text(encoding="utf-8")
     results: dict[str, object] = {"families": {}}
     emitted_sections = [
         "// spline_structs_sollya_bf16.cuh — BF16 Sollya fpminimax activation structs",
@@ -424,13 +506,17 @@ def generate() -> dict[str, object]:
     parsed_current: dict[str, dict[str, object]] = {}
     for spec in BASE_SPECS:
         results["families"][spec.display_name] = {}
-        emitted_sections.append("// =============================================================================")
+        emitted_sections.append(
+            "// ============================================================================="
+        )
         emitted_sections.append(f"// {spec.display_name} — Sollya BF16 variants")
-        emitted_sections.append("// =============================================================================")
+        emitted_sections.append(
+            "// ============================================================================="
+        )
         emitted_sections.append("")
         for degree in spec.degrees:
             current_name = spec.current_name_tpl.format(degree=degree)
-            parsed = parse_current_struct(current_name, current_text)
+            parsed = parse_current_struct(current_name, current_text, current_header)
             parsed_current[current_name] = parsed
             clamp = float(parsed["clamp"])
             current_coeffs = [float(v) for v in parsed["coeffs"]]
@@ -439,29 +525,39 @@ def generate() -> dict[str, object]:
 
             if spec.kind == "centered_odd":
                 current_eval_coeffs = current_coeffs[1:]
-                current_err = max_error(spec.kind, current_eval_coeffs, clamp, spec.target)
+                current_err = max_error(
+                    spec.kind, current_eval_coeffs, clamp, spec.target
+                )
                 sollya_err = max_error(spec.kind, sollya_coeffs, clamp, spec.target)
                 emitter = emit_centered_odd_struct
             elif spec.kind == "odd_factorized":
                 current_eval_coeffs = current_coeffs[1:]
-                current_err = max_error(spec.kind, current_eval_coeffs, clamp, spec.target)
+                current_err = max_error(
+                    spec.kind, current_eval_coeffs, clamp, spec.target
+                )
                 sollya_err = max_error(spec.kind, sollya_coeffs, clamp, spec.target)
                 emitter = emit_odd_factorized_struct
             elif spec.kind == "even":
                 current_eval_coeffs = current_coeffs
-                current_err = max_error(spec.kind, current_eval_coeffs, clamp, spec.target)
+                current_err = max_error(
+                    spec.kind, current_eval_coeffs, clamp, spec.target
+                )
                 sollya_err = max_error(spec.kind, sollya_coeffs, clamp, spec.target)
                 emitter = emit_even_struct
             elif spec.kind == "gelu_forward":
                 current_eval_coeffs = current_coeffs[1:]
-                current_err = max_error(spec.kind, current_eval_coeffs, clamp, spec.target)
+                current_err = max_error(
+                    spec.kind, current_eval_coeffs, clamp, spec.target
+                )
                 sollya_err = max_error(spec.kind, sollya_coeffs, clamp, spec.target)
                 emitter = emit_gelu_forward_struct
             else:  # pragma: no cover - developer error
                 raise ValueError(f"Unknown kind {spec.kind}")
 
             sollya_name = spec.sollya_name_tpl.format(degree=degree)
-            emitted_sections.append(emitter(sollya_name, sollya_coeffs, clamp, sollya_err))
+            emitted_sections.append(
+                emitter(sollya_name, sollya_coeffs, clamp, sollya_err)
+            )
             results["families"][spec.display_name][f"D{degree}"] = {
                 "current_struct": current_name,
                 "sollya_struct": sollya_name,
@@ -473,16 +569,24 @@ def generate() -> dict[str, object]:
                 "sollya_max_error": sollya_err,
             }
 
-    emitted_sections.append("// =============================================================================")
+    emitted_sections.append(
+        "// ============================================================================="
+    )
     emitted_sections.append("// swish_fwd — Sollya-composed BF16 variants")
-    emitted_sections.append("// =============================================================================")
+    emitted_sections.append(
+        "// ============================================================================="
+    )
     emitted_sections.append("")
     results["families"]["swish_fwd"] = {}
     for degree in SWISH_FWD_DEGREES:
         current_sig = results["families"]["sigmoid_fwd"][f"D{degree}"]
         clamp = float(current_sig["clamp"])
-        current_err = max_error("swish_composed", current_sig["current_coeffs"], clamp, swish)
-        sollya_err = max_error("swish_composed", current_sig["sollya_coeffs"], clamp, swish)
+        current_err = max_error(
+            "swish_composed", current_sig["current_coeffs"], clamp, swish
+        )
+        sollya_err = max_error(
+            "swish_composed", current_sig["sollya_coeffs"], clamp, swish
+        )
         current_name = f"SWISH_FWD_D{degree}_ODD_BF16"
         sollya_name = f"SWISH_FWD_D{degree}_ODD_SOLLYA_BF16"
         emitted_sections.append(
@@ -502,15 +606,45 @@ def generate() -> dict[str, object]:
             "sollya_max_error": sollya_err,
         }
 
-    SOLLYA_HEADER.write_text("\n".join(emitted_sections) + "\n")
-    OUT_JSON.write_text(json.dumps(results, indent=2) + "\n")
+    sollya_header.parent.mkdir(parents=True, exist_ok=True)
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    sollya_header.write_text("\n".join(emitted_sections) + "\n", encoding="utf-8")
+    if provenance is not None:
+        provenance["generated_header_sha256"] = sha256_file(sollya_header)
+        bind_fit_payload(results, provenance)
+    out_json.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
     return results
 
 
-def main() -> None:
-    results = generate()
-    print(f"Wrote {SOLLYA_HEADER}")
-    print(f"Wrote {OUT_JSON}")
+def get_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--current-header", type=Path, default=CURRENT_HEADER)
+    parser.add_argument("--header-out", type=Path, default=SOLLYA_HEADER)
+    parser.add_argument("--json-out", type=Path, default=OUT_JSON)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> None:
+    raw_arguments = list(sys.argv[1:] if argv is None else argv)
+    args = get_parser().parse_args(argv)
+    provenance = build_fit_provenance(
+        script=Path(__file__),
+        arguments=raw_arguments,
+        source_files=[args.current_header],
+        distributions=("numpy", "torch"),
+    )
+    environment = provenance["environment"]
+    if not isinstance(environment, dict):  # pragma: no cover - helper contract
+        raise RuntimeError("fit provenance environment must be an object")
+    environment["sollya"] = sollya_version()
+    results = generate(
+        current_header=args.current_header,
+        sollya_header=args.header_out,
+        out_json=args.json_out,
+        provenance=provenance,
+    )
+    print(f"Wrote {args.header_out}")
+    print(f"Wrote {args.json_out}")
     for family in ("sigmoid_fwd", "tanh_fwd", "swish_fwd", "gelu_fwd"):
         print(f"{family}:")
         for degree, row in results["families"][family].items():

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 """
 Flash Attention Full Benchmark: SFU vs Spline (tanh × exp2)
 =============================================================
@@ -28,7 +32,9 @@ import os
 import torch
 import numpy as np
 
-FA_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "flash-attention"))
+FA_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "flash-attention")
+)
 sys.path.insert(0, FA_ROOT)
 from flash_attn.cute.interface import _flash_attn_fwd
 from flash_attn.cute import utils
@@ -38,6 +44,7 @@ from flash_attn.cute.polynomial_manifest import run_polynomial_coefficient_audit
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def bench_fn(fn, warmup=10, reps=50):
     """Benchmark a function using CUDA events. Returns time in µs."""
@@ -84,7 +91,9 @@ def parse_degrees(spec):
 def fa_fwd(q, k, v, softcap=None, score_mod=None, causal=False):
     """Wrapper around _flash_attn_fwd with sensible defaults."""
     return _flash_attn_fwd(
-        q, k, v,
+        q,
+        k,
+        v,
         softcap=softcap,
         score_mod=score_mod,
         causal=causal,
@@ -125,6 +134,7 @@ def set_exp2_mode(mode):
 # Correctness check
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def check_correctness(softcap_val=50.0, dtype=torch.bfloat16, causal=False):
     """Compare all 4 modes against SFU baseline."""
     print("\n" + "=" * 70)
@@ -136,7 +146,9 @@ def check_correctness(softcap_val=50.0, dtype=torch.bfloat16, causal=False):
     k = torch.randn(B, S, H, D, device="cuda", dtype=dtype)
     v = torch.randn(B, S, H, D, device="cuda", dtype=dtype)
 
-    spline_scoremod = utils.create_softcap_scoremod_backend(softcap_val, degree=4, backend="device")
+    spline_scoremod = utils.create_softcap_scoremod_backend(
+        softcap_val, degree=4, backend="device"
+    )
 
     # Mode 1: SFU tanh + SFU exp2 (baseline) — e2e=False by default for small S
     set_exp2_mode("deg3")
@@ -147,7 +159,9 @@ def check_correctness(softcap_val=50.0, dtype=torch.bfloat16, causal=False):
     set_exp2_mode("deg3")
     out_spline_tanh, _ = fa_fwd(q, k, v, score_mod=spline_scoremod, causal=causal)
     d = (out_baseline.float() - out_spline_tanh.float()).abs()
-    print(f"  Spline tanh + SFU exp2:  max_diff={d.max():.6f}  mean_diff={d.mean():.8f}")
+    print(
+        f"  Spline tanh + SFU exp2:  max_diff={d.max():.6f}  mean_diff={d.mean():.8f}"
+    )
 
     # Note: exp2 monkeypatching only works when e2e=True, which only kicks in
     # when mask_fn is None and head_dim_padded <= 128. For small configs this
@@ -165,6 +179,7 @@ def check_correctness(softcap_val=50.0, dtype=torch.bfloat16, causal=False):
 # ─────────────────────────────────────────────────────────────────────────────
 # 4-mode benchmark
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def benchmark_4mode(
     softcap_val=50.0,
@@ -195,11 +210,15 @@ def benchmark_4mode(
             (8, 1024, 32, 128),
         ]
 
-    spline_scoremod = utils.create_softcap_scoremod_backend(softcap_val, degree=4, backend="device")
+    spline_scoremod = utils.create_softcap_scoremod_backend(
+        softcap_val, degree=4, backend="device"
+    )
 
-    print(f"\n  {'Config':>25s}  {'A: SFU/SFU':>11s}  {'B: Spl/SFU':>11s}  "
-          f"{'C: SFU/Spl':>11s}  {'D: Spl/Spl':>11s}  "
-          f"{'B/A':>6s}  {'C/A':>6s}  {'D/A':>6s}")
+    print(
+        f"\n  {'Config':>25s}  {'A: SFU/SFU':>11s}  {'B: Spl/SFU':>11s}  "
+        f"{'C: SFU/Spl':>11s}  {'D: Spl/Spl':>11s}  "
+        f"{'B/A':>6s}  {'C/A':>6s}  {'D/A':>6s}"
+    )
     print("  " + "-" * 110)
 
     results = []
@@ -216,28 +235,32 @@ def benchmark_4mode(
         set_exp2_mode("deg3")
         t_a = bench_fn(
             lambda: fa_fwd(q, k, v, softcap=softcap_val, causal=causal),
-            warmup=warmup, reps=reps,
+            warmup=warmup,
+            reps=reps,
         )
 
         # Mode B: Spline tanh + deg-3 exp2
         set_exp2_mode("deg3")
         t_b = bench_fn(
             lambda: fa_fwd(q, k, v, score_mod=spline_scoremod, causal=causal),
-            warmup=warmup, reps=reps,
+            warmup=warmup,
+            reps=reps,
         )
 
         # Mode C: SFU tanh + linear exp2
         set_exp2_mode("linear")
         t_c = bench_fn(
             lambda: fa_fwd(q, k, v, softcap=softcap_val, causal=causal),
-            warmup=warmup, reps=reps,
+            warmup=warmup,
+            reps=reps,
         )
 
         # Mode D: Spline tanh + linear exp2 (fully SFU-free)
         set_exp2_mode("linear")
         t_d = bench_fn(
             lambda: fa_fwd(q, k, v, score_mod=spline_scoremod, causal=causal),
-            warmup=warmup, reps=reps,
+            warmup=warmup,
+            reps=reps,
         )
 
         # Reset
@@ -250,32 +273,48 @@ def benchmark_4mode(
 
         best = max(r_b, r_c, r_d)
         marker = " 🔥" if best > 1.3 else ""
-        print(f"  {config:>25s}  {t_a:>9.0f}µ  {t_b:>9.0f}µ  "
-              f"{t_c:>9.0f}µ  {t_d:>9.0f}µ  "
-              f"{r_b:>5.2f}x  {r_c:>5.2f}x  {r_d:>5.2f}x{marker}")
+        print(
+            f"  {config:>25s}  {t_a:>9.0f}µ  {t_b:>9.0f}µ  "
+            f"{t_c:>9.0f}µ  {t_d:>9.0f}µ  "
+            f"{r_b:>5.2f}x  {r_c:>5.2f}x  {r_d:>5.2f}x{marker}"
+        )
 
-        results.append({
-            "B": B, "S": S, "H": H, "D": D,
-            "A_us": t_a, "B_us": t_b, "C_us": t_c, "D_us": t_d,
-            "B_speedup": r_b, "C_speedup": r_c, "D_speedup": r_d,
-        })
+        results.append(
+            {
+                "B": B,
+                "S": S,
+                "H": H,
+                "D": D,
+                "A_us": t_a,
+                "B_us": t_b,
+                "C_us": t_c,
+                "D_us": t_d,
+                "B_speedup": r_b,
+                "C_speedup": r_c,
+                "D_speedup": r_d,
+            }
+        )
 
         del q, k, v
         torch.cuda.empty_cache()
 
     # Summary
     if results:
-        print(f"\n  {'':>25s}  {'':>11s}  {'':>11s}  {'':>11s}  {'':>11s}  "
-              f"{'B/A':>6s}  {'C/A':>6s}  {'D/A':>6s}")
+        print(
+            f"\n  {'':>25s}  {'':>11s}  {'':>11s}  {'':>11s}  {'':>11s}  "
+            f"{'B/A':>6s}  {'C/A':>6s}  {'D/A':>6s}"
+        )
         speedups_b = [r["B_speedup"] for r in results]
         speedups_c = [r["C_speedup"] for r in results]
         speedups_d = [r["D_speedup"] for r in results]
         gmean_b = np.exp(np.mean(np.log(speedups_b)))
         gmean_c = np.exp(np.mean(np.log(speedups_c)))
         gmean_d = np.exp(np.mean(np.log(speedups_d)))
-        print(f"  {'GeoMean Speedup:':>25s}  {'':>11s}  {'':>11s}  "
-              f"{'':>11s}  {'':>11s}  "
-              f"{gmean_b:>5.2f}x  {gmean_c:>5.2f}x  {gmean_d:>5.2f}x")
+        print(
+            f"  {'GeoMean Speedup:':>25s}  {'':>11s}  {'':>11s}  "
+            f"{'':>11s}  {'':>11s}  "
+            f"{gmean_b:>5.2f}x  {gmean_c:>5.2f}x  {gmean_d:>5.2f}x"
+        )
 
     return results
 
@@ -291,7 +330,9 @@ def benchmark_softcap_backend_compare(
     backends=("cute", "device"),
 ):
     print("\n" + "=" * 90)
-    print(f"SOFTCAP BACKEND/DEGREE COMPARISON  (softcap={softcap_val}, causal={causal})")
+    print(
+        f"SOFTCAP BACKEND/DEGREE COMPARISON  (softcap={softcap_val}, causal={causal})"
+    )
     print("=" * 90)
 
     if configs is None:
@@ -325,7 +366,9 @@ def benchmark_softcap_backend_compare(
                     warmup=warmup,
                     reps=reps,
                 )
-                print(f"  {f'D{degree} {backend}':<28s}  {t:>10.0f}  {t_native/t:>10.3f}x")
+                print(
+                    f"  {f'D{degree} {backend}':<28s}  {t:>10.0f}  {t_native/t:>10.3f}x"
+                )
         del q, k, v
         torch.cuda.empty_cache()
 
@@ -334,6 +377,7 @@ def benchmark_softcap_backend_compare(
 # No-softcap comparison
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def no_softcap_comparison(dtype=torch.bfloat16, warmup=10, reps=50):
     """Compare overhead of softcapping vs no softcapping."""
     print("\n" + "=" * 70)
@@ -341,10 +385,14 @@ def no_softcap_comparison(dtype=torch.bfloat16, warmup=10, reps=50):
     print("  How much does softcapping cost, and how much does spline save?")
     print("=" * 70)
 
-    spline_scoremod = utils.create_softcap_scoremod_backend(50.0, degree=4, backend="device")
+    spline_scoremod = utils.create_softcap_scoremod_backend(
+        50.0, degree=4, backend="device"
+    )
 
-    print(f"\n  {'Config':>25s}  {'No SC':>9s}  {'SFU SC':>9s}  "
-          f"{'Spline SC':>10s}  {'SC overhead':>12s}  {'Spline overhead':>16s}")
+    print(
+        f"\n  {'Config':>25s}  {'No SC':>9s}  {'SFU SC':>9s}  "
+        f"{'Spline SC':>10s}  {'SC overhead':>12s}  {'Spline overhead':>16s}"
+    )
     print("  " + "-" * 90)
 
     for B, S, H, D in [(1, 2048, 32, 128), (2, 2048, 32, 128), (4, 1024, 32, 128)]:
@@ -353,14 +401,20 @@ def no_softcap_comparison(dtype=torch.bfloat16, warmup=10, reps=50):
         v = torch.randn(B, S, H, D, device="cuda", dtype=dtype)
 
         t_none = bench_fn(lambda: fa_fwd(q, k, v), warmup=warmup, reps=reps)
-        t_sfu = bench_fn(lambda: fa_fwd(q, k, v, softcap=50.0), warmup=warmup, reps=reps)
-        t_spl = bench_fn(lambda: fa_fwd(q, k, v, score_mod=spline_scoremod), warmup=warmup, reps=reps)
+        t_sfu = bench_fn(
+            lambda: fa_fwd(q, k, v, softcap=50.0), warmup=warmup, reps=reps
+        )
+        t_spl = bench_fn(
+            lambda: fa_fwd(q, k, v, score_mod=spline_scoremod), warmup=warmup, reps=reps
+        )
 
         config = f"B={B} S={S} H={H} D={D}"
         sfu_oh = (t_sfu / t_none - 1) * 100
         spl_oh = (t_spl / t_none - 1) * 100
-        print(f"  {config:>25s}  {t_none:>7.0f}µ  {t_sfu:>7.0f}µ  "
-              f"{t_spl:>8.0f}µ  {sfu_oh:>+10.0f}%  {spl_oh:>+14.0f}%")
+        print(
+            f"  {config:>25s}  {t_none:>7.0f}µ  {t_sfu:>7.0f}µ  "
+            f"{t_spl:>8.0f}µ  {sfu_oh:>+10.0f}%  {spl_oh:>+14.0f}%"
+        )
 
         del q, k, v
         torch.cuda.empty_cache()
@@ -369,6 +423,7 @@ def no_softcap_comparison(dtype=torch.bfloat16, warmup=10, reps=50):
 # ─────────────────────────────────────────────────────────────────────────────
 # Softcap value sweep
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def softcap_sweep(dtype=torch.bfloat16, warmup=10, reps=50):
     """Does speedup depend on softcap magnitude?"""
@@ -381,23 +436,33 @@ def softcap_sweep(dtype=torch.bfloat16, warmup=10, reps=50):
     k = torch.randn(B, S, H, D, device="cuda", dtype=dtype)
     v = torch.randn(B, S, H, D, device="cuda", dtype=dtype)
 
-    print(f"\n  {'Softcap':>10s}  {'SFU':>9s}  {'Spline':>9s}  "
-          f"{'Speedup':>8s}  {'Max Diff':>10s}")
+    print(
+        f"\n  {'Softcap':>10s}  {'SFU':>9s}  {'Spline':>9s}  "
+        f"{'Speedup':>8s}  {'Max Diff':>10s}"
+    )
     print("  " + "-" * 55)
 
     for softcap_val in [10.0, 20.0, 30.0, 50.0, 100.0]:
-        spline_scoremod = utils.create_softcap_scoremod_backend(softcap_val, degree=4, backend="device")
+        spline_scoremod = utils.create_softcap_scoremod_backend(
+            softcap_val, degree=4, backend="device"
+        )
 
-        t_sfu = bench_fn(lambda: fa_fwd(q, k, v, softcap=softcap_val), warmup=warmup, reps=reps)
-        t_spl = bench_fn(lambda: fa_fwd(q, k, v, score_mod=spline_scoremod), warmup=warmup, reps=reps)
+        t_sfu = bench_fn(
+            lambda: fa_fwd(q, k, v, softcap=softcap_val), warmup=warmup, reps=reps
+        )
+        t_spl = bench_fn(
+            lambda: fa_fwd(q, k, v, score_mod=spline_scoremod), warmup=warmup, reps=reps
+        )
 
         out_sfu, _ = fa_fwd(q, k, v, softcap=softcap_val)
         out_spl, _ = fa_fwd(q, k, v, score_mod=spline_scoremod)
         max_diff = (out_sfu.float() - out_spl.float()).abs().max().item()
 
         speedup = t_sfu / t_spl
-        print(f"  {softcap_val:>10.1f}  {t_sfu:>7.0f}µ  {t_spl:>7.0f}µ  "
-              f"{speedup:>7.2f}x  {max_diff:>10.6f}")
+        print(
+            f"  {softcap_val:>10.1f}  {t_sfu:>7.0f}µ  {t_spl:>7.0f}µ  "
+            f"{speedup:>7.2f}x  {max_diff:>10.6f}"
+        )
 
     del q, k, v
     torch.cuda.empty_cache()
@@ -406,6 +471,7 @@ def softcap_sweep(dtype=torch.bfloat16, warmup=10, reps=50):
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def main():
     parser = argparse.ArgumentParser(description="FA Softcap: 4-mode benchmark")

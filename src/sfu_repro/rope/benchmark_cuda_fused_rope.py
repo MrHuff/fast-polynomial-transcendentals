@@ -15,7 +15,11 @@ from typing import Callable
 import torch
 
 from .benchmark_cuda_rope_sincos import benchmark_interleaved
-from .benchmark_polynomial_sincos import load_spline_ops
+from .benchmark_polynomial_sincos import (
+    attest_rope_sources,
+    load_spline_ops,
+    rope_result_metadata,
+)
 
 
 RopeOutput = tuple[torch.Tensor, torch.Tensor]
@@ -56,6 +60,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--trials", type=int, default=9)
     parser.add_argument("--seed", type=int, default=1234)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--allow-unbound-source",
+        action="store_true",
+        help="Permit a diagnostic result from dirty or non-local source.",
+    )
     return parser.parse_args()
 
 
@@ -208,6 +217,10 @@ def main() -> None:
         raise ValueError("head_dim must be a positive multiple of eight")
 
     spline_ops = load_spline_ops()
+    repository_state, attestations, source_bound = attest_rope_sources(
+        spline_ops=spline_ops,
+        allow_unbound_source=args.allow_unbound_source,
+    )
     required = (
         "rope_apply_cached_fp16",
         "rope_apply_native_fp16",
@@ -267,8 +280,22 @@ def main() -> None:
             f"{row['max_abs']:11.3e}"
         )
 
+    measurement_order = [
+        [
+            "cached_table_fp16",
+            "native_sfu_on_the_fly_fp16",
+            "q32_half_d5_d6_on_the_fly_fp16",
+        ][:: 1 if trial % 2 == 0 else -1]
+        for trial in range(args.trials)
+    ]
     payload = {
-        "configuration": {
+        **rope_result_metadata(
+            "rope-fused-integration",
+            repository_state=repository_state,
+            attestations=attestations,
+            source_bound=source_bound,
+        ),
+        "measurement": {
             "device_name": torch.cuda.get_device_name(),
             "batch_size": args.batch_size,
             "sequence_length": args.sequence_length,
@@ -276,6 +303,12 @@ def main() -> None:
             "theta": args.theta,
             "head_configs": args.head_configs,
             "cached_table_generation_included": False,
+            "warmup": args.warmup,
+            "repeats": args.repeats,
+            "trials": args.trials,
+            "seed": args.seed,
+            "summary_statistic": "median of per-trial means",
+            "measurement_order_per_head_config": measurement_order,
         },
         "results": results,
     }

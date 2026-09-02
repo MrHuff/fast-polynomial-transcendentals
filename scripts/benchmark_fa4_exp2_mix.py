@@ -19,6 +19,7 @@ import argparse
 import json
 import statistics
 import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
@@ -33,6 +34,12 @@ from sfu_repro.fa4 import (
     parse_exp2_frequency,
     parse_exp2_variants,
     softmax_exp2_config,
+)
+from sfu_repro.source_attestation import (
+    attest_module_source,
+    git_state as source_git_state,
+    require_bound_attestations,
+    safe_command,
 )
 
 
@@ -166,6 +173,11 @@ def get_parser() -> argparse.ArgumentParser:
         type=Path,
         default=REPOSITORY_ROOT / "outputs" / "fa4-exp2-mix.json",
     )
+    parser.add_argument(
+        "--allow-unbound-source",
+        action="store_true",
+        help="Permit a diagnostic run from dirty or non-local FA4 source.",
+    )
     return parser
 
 
@@ -177,6 +189,32 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError(
             "warmup must be non-negative; iterations and rounds must be positive"
         )
+
+    import flash_attn.cute.interface as fa4_interface
+
+    repository_state = source_git_state(REPOSITORY_ROOT)
+    fa4_state = source_git_state(REPOSITORY_ROOT / "flash-attention")
+    attestations = {
+        "sfu_repro": {
+            "source_revision": repository_state["revision"],
+            "expected_source_revision": repository_state["revision"],
+            "source_dirty": repository_state["dirty"],
+            "source_untracked_files": repository_state["untracked_files"],
+            "bound": bool(
+                repository_state["revision"] is not None
+                and repository_state["dirty"] is False
+            ),
+        },
+        "flash_attn": attest_module_source(
+            "flash_attn.cute.interface",
+            source_checkout=REPOSITORY_ROOT / "flash-attention",
+            repository_root=REPOSITORY_ROOT,
+            expected_revision=fa4_state["revision"],
+            distribution="flash-attn",
+            module=fa4_interface,
+        ),
+    }
+    require_bound_attestations(attestations, allow_unbound=args.allow_unbound_source)
 
     torch.manual_seed(args.seed)
     q_shape = (
@@ -339,12 +377,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     properties = torch.cuda.get_device_properties(0)
     dirty, untracked_files = git_worktree_state()
+    source_bound = all(item["bound"] for item in attestations.values())
     return {
         "schema_version": 1,
         "experiment": {
             "id": "fa4-exp2-mix",
             "reference_variant": reference_name,
-            "provenance_class": "new-measurement",
+            "provenance_class": (
+                "new-measurement" if source_bound else "diagnostic-unbound-source"
+            ),
         },
         "source": {
             "repository": "MrHuff/fast-polynomial-transcendentals",
@@ -354,6 +395,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "external_components": {
                 "flash-attention": flash_attention_revision(),
             },
+            "module_origins": attestations,
         },
         "environment": {
             "gpu": properties.name,
@@ -380,6 +422,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "kv_heads": args.kv_heads,
                 "head_dim": args.head_dim,
             },
+            "command": safe_command(
+                [Path(sys.executable).name, *sys.argv], REPOSITORY_ROOT
+            ),
         },
         "results": rows,
     }

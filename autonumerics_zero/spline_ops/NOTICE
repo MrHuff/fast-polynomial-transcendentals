@@ -1,0 +1,8 @@
+SFU Spline Operators
+
+This distribution includes selected AutoNumerics CUDA kernels and generated
+coefficient tables from the low-precision-functions research codebase.
+
+Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+
+This NOTICE is informational and does not modify the terms of the LICENSE.

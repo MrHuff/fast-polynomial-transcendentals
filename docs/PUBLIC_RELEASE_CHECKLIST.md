@@ -46,6 +46,11 @@ commit and its complete Git history.
       assume its root license resolves copied third-party fragments.
 - [ ] Audit the patched FlashAttention-4 submodule and every nested dependency
       at the pinned commit. Preserve its separate license and notices.
+- [ ] Audit the TorchTitan v0.2.2 submodule and public adapter at their pinned
+      commits. Preserve BSD-3-Clause attribution and verify the release-named
+      PyTorch/TorchAO stack.
+- [ ] Audit the lm-evaluation-harness v0.4.12 submodule at its pinned commit.
+      Preserve its MIT license and review the eight selected task definitions.
 - [ ] Generate a third-party dependency/license inventory for the locked Python
       and CUDA environments.
 - [ ] Confirm that the project name, company names, logos, and hardware names
@@ -58,6 +63,10 @@ commit and its complete Git history.
       tree, history, LFS, or release assets.
 - [ ] Review every configured model and dataset against its access,
       redistribution, derivative-output, and acceptable-use terms.
+- [ ] Review the pinned SlimPajama community re-upload and its underlying
+      source terms. Confirm whether its bytes may be treated as equivalent to
+      the removed Cerebras repository; otherwise preserve the current
+      public-protocol replacement label.
 - [ ] Confirm publication rights for each retained CSV, JSON, PDF, and PNG,
       including derived benchmark and training-history data.
 - [ ] Decide whether historical run names, run IDs, timestamps, and service
@@ -75,8 +84,10 @@ commit and its complete Git history.
 - [ ] Verify that the standalone implementation is tested as a new
       implementation and is not presented as runtime attestation of historical
       outputs.
-- [ ] Keep the paired pre-training workflow offline-only unless a complete new
-      training manifest and authorized inputs are provided.
+- [ ] Present the TorchTitan recipes as a new public rerun protocol. Keep their
+      outputs separate from materialized historical evidence and record all
+      newly selected seeds, dataset/tokenizer snapshots, checkpoints, and
+      selected base TOMLs plus effective overrides.
 - [ ] State plainly that this repository does not support an exact reproduction
       of the reported 100B-token training trajectories.
 - [ ] Treat runs on hardware other than GB200/SM100 as new measurements.
@@ -86,13 +97,29 @@ commit and its complete Git history.
 - [ ] Install the base package from a clean clone with no organization
       credentials or machine-specific paths.
 - [ ] Run all CPU tests and configuration validation.
+- [ ] Parse all eleven TorchTitan configs with the release-named runtime, run a
+      tiny native/polynomial smoke pair and the three B5 arms, and verify
+      B1/B2/B3/B4/B5 patch counts and unchanged control scopes.
+- [ ] Create and reload each case-specific seed checkpoint; verify identical
+      initial-weight and first-token-batch hashes between paired arms.
+- [ ] Run the pinned tokenizer asset helper in a clean environment and verify
+      both generated SHA-256 manifests with `sfu-doctor --profile train`.
+- [ ] Exercise the new held-out validation path and verify loss aggregation on
+      the supported distributed layouts.
+- [ ] Export one completed native/polynomial TensorBoard pair and verify the
+      step-20--100 window, event hashes, wall-clock metric label, and
+      pretraining/validation series.
+- [ ] Export both B5 native/candidate pairs and verify their candidate labels,
+      step-20--80 manifest window, event hashes, and wall-clock metric label.
 - [ ] Regenerate a representative CPU fit and validate its output schema.
 - [ ] Build `spline_ops` in the documented SM100 environment and run its
       numerical tests.
 - [ ] Run B1--B4 component probes and the fractional-`exp2` probe with all
       environment, clock, geometry, warm-up, and repetition metadata recorded.
-- [ ] Run each supported open-weight patch in a legally provisioned clean
-      environment; verify both patched scope and native restoration.
+- [ ] Run each supported open-weight patch in its pinned, legally provisioned
+      environment; verify patched scope, native restoration, raw evaluator
+      output retention, clean pinned lm-eval source, and immutable model,
+      tokenizer, and task-dataset revisions.
 - [ ] Verify all documentation links and commands from the release candidate.
 
 ## P0: dependency and supply-chain review
@@ -103,6 +130,9 @@ commit and its complete Git history.
 - [ ] Run dependency vulnerability, license, and binary scans.
 - [ ] Review build scripts for network downloads and command execution; document
       every expected network boundary.
+- [ ] Verify the Kimi FlashAttention dependency was installed with
+      `FLASH_ATTENTION_FORCE_BUILD=TRUE`; preserve hashes of the resulting
+      native extension binaries with the environment record.
 - [ ] Produce deterministic hashes for the source archive and released evidence
       bundle.
 

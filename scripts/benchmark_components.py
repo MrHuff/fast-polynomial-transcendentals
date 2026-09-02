@@ -20,6 +20,7 @@ import gc
 import json
 import statistics
 import subprocess
+import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,12 @@ from sfu_repro.fa4 import (
     b2_component_configs,
     b3_component_configs,
     resolve_fa4_config,
+)
+from sfu_repro.source_attestation import (
+    attest_module_source,
+    git_state as source_git_state,
+    require_bound_attestations,
+    safe_command,
 )
 
 
@@ -453,6 +460,11 @@ def get_parser() -> argparse.ArgumentParser:
         type=Path,
         default=REPOSITORY_ROOT / "outputs" / "component-probes.json",
     )
+    parser.add_argument(
+        "--allow-unbound-source",
+        action="store_true",
+        help="Permit a diagnostic run from dirty or non-local kernel sources.",
+    )
     return parser
 
 
@@ -491,6 +503,44 @@ def main() -> int:
             "B3 direct D3/D4 requires --b3-sequence-length="
             f"{FLASH_SIGMOID_DIRECT_SEQUENCE_LENGTH}"
         )
+
+    repository_state = source_git_state(REPOSITORY_ROOT)
+    attestations: dict[str, dict[str, Any]] = {
+        "sfu_repro": {
+            "source_revision": repository_state["revision"],
+            "expected_source_revision": repository_state["revision"],
+            "source_dirty": repository_state["dirty"],
+            "source_untracked_files": repository_state["untracked_files"],
+            "bound": bool(
+                repository_state["revision"] is not None
+                and repository_state["dirty"] is False
+            ),
+        }
+    }
+    if {"b1", "b4"}.intersection(args.cases):
+        spline_ops = load_spline_ops()
+        attestations["spline_ops"] = attest_module_source(
+            "spline_ops",
+            source_checkout=REPOSITORY_ROOT / "autonumerics_zero" / "spline_ops",
+            repository_root=REPOSITORY_ROOT,
+            expected_revision=repository_state["revision"],
+            distribution="sfu-spline-ops",
+            expected_version="0.1.0",
+            module=spline_ops,
+        )
+    if {"b2", "b3"}.intersection(args.cases):
+        import flash_attn.cute.interface as fa4_interface
+
+        fa4_state = source_git_state(REPOSITORY_ROOT / "flash-attention")
+        attestations["flash_attn"] = attest_module_source(
+            "flash_attn.cute.interface",
+            source_checkout=REPOSITORY_ROOT / "flash-attention",
+            repository_root=REPOSITORY_ROOT,
+            expected_revision=fa4_state["revision"],
+            distribution="flash-attn",
+            module=fa4_interface,
+        )
+    require_bound_attestations(attestations, allow_unbound=args.allow_unbound_source)
 
     runners: dict[str, Callable[[], dict[str, Any]]] = {
         "b1": lambda: benchmark_b1(
@@ -531,12 +581,15 @@ def main() -> int:
 
     properties = torch.cuda.get_device_properties(0)
     dirty, untracked_files = git_worktree_state()
+    source_bound = all(item["bound"] for item in attestations.values())
     payload = {
         "schema_version": 1,
         "experiment": {
             "id": "b1-b4-component-probes",
             "selected_cases": args.cases,
-            "provenance_class": "new-measurement",
+            "provenance_class": (
+                "new-measurement" if source_bound else "diagnostic-unbound-source"
+            ),
         },
         "source": {
             "repository": "MrHuff/fast-polynomial-transcendentals",
@@ -546,6 +599,7 @@ def main() -> int:
             "external_components": {
                 "flash-attention": flash_attention_revision(),
             },
+            "module_origins": attestations,
         },
         "environment": {
             "gpu": properties.name,
@@ -565,6 +619,9 @@ def main() -> int:
             "timed_iterations_per_variant": args.iterations * args.rounds,
             "summary_statistic": "median of per-round means",
             "order_policy": "rotate native/polynomial order each round",
+            "command": safe_command(
+                [Path(sys.executable).name, *sys.argv], REPOSITORY_ROOT
+            ),
         },
         "results": rows,
     }

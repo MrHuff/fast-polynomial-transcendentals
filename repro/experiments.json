@@ -1,8 +1,17 @@
 {
   "schema_version": 1,
   "repository": "https://github.com/MrHuff/fast-polynomial-transcendentals",
+  "command_semantics": {
+    "command": "A real execution command. It may create outputs, load models, use accelerators, or access provider services once its declared prerequisites are supplied.",
+    "preview_command": "A non-executing command that validates or prints a planned invocation without launching the experiment. It is never evidence for a result.",
+    "setup_commands": "Real commands that must run before the primary command.",
+    "additional_commands": "Real peer executions required to complete a paired or multi-arm workflow.",
+    "postprocess_commands": "Real local commands that consume completed outputs and produce derived artifacts. Placeholder substitutions must be supplied explicitly."
+  },
   "external_source_pins": {
-    "flash-attention": "38afdedda24b0bf26e6904d3bed7807c19a6906e"
+    "flash-attention": "38afdedda24b0bf26e6904d3bed7807c19a6906e",
+    "torchtitan": "73a0e6979dd10b6b1904098eb3c8f62c18ab87ce",
+    "lm-evaluation-harness": "6d642546f4688648fced259eb3302efd36ece5af"
   },
   "legacy_source": {
     "root_repository": "graphcore-research/low-precision-functions",
@@ -12,82 +21,849 @@
     "b4_artifact_pin": "89694ba4e53300d71fad5672f3a15a5f533317b5"
   },
   "status_definitions": {
-    "runnable": "The checked-in command is self-contained once its documented public dependencies and hardware are supplied.",
-    "hardware-gated": "The portable command is present but requires the named accelerator stack.",
-    "historical-only": "The materialized evidence is retained, but the original execution state is incomplete and no exact rerun is claimed."
+    "runnable": "The real command is present and can run once its declared software and generated-input prerequisites are supplied.",
+    "hardware-gated": "The real command is present but requires the declared accelerator stack, external assets, or distributed-launch substitutions.",
+    "historical-only": "Materialized evidence may be inspected, but no command is presented as an exact historical rerun."
   },
   "experiments": [
     {
       "id": "function-fit-comparison",
       "status": "runnable",
-      "command": ["python", "autonumerics_zero/spline_ops/generate_sollya_structs_bf16.py"],
+      "command": ["python", "autonumerics_zero/spline_ops/generate_sollya_structs_bf16.py", "--current-header", "autonumerics_zero/spline_ops/spline_structs_odd_bf16.cuh", "--header-out", "outputs/spline_structs_sollya_bf16.generated.cuh", "--json-out", "outputs/sollya_device_bf16.generated.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "autonumerics_zero/spline_ops/generate_sollya_structs_bf16.py",
+          "autonumerics_zero/spline_ops/spline_structs_odd_bf16.cuh"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "NumPy", "PyTorch", "Sollya"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "coefficient-fit-comparison",
+        "output_class": "generated-fit",
+        "outputs": [
+          "outputs/spline_structs_sollya_bf16.generated.cuh",
+          "outputs/sollya_device_bf16.generated.json"
+        ],
+        "substitutions": {},
+        "notes": "The caller-selected outputs preserve the checked-in historical header and evidence artifact."
+      },
       "artifact": "autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json"
+    },
+    {
+      "id": "activation-fp16-bf16-fit-sweeps",
+      "status": "runnable",
+      "command": ["python", "autonumerics_zero/evolution/fit_all_degrees.py", "--json-out", "outputs/all_degree_coefficients_fp16.json"],
+      "additional_commands": [
+        ["python", "autonumerics_zero/evolution/fit_all_degrees_bf16.py", "--json-out", "outputs/all_degree_coefficients_bf16.json"]
+      ],
+      "prerequisites": {
+        "repository_paths": [
+          "autonumerics_zero/evolution/fit_all_degrees.py",
+          "autonumerics_zero/evolution/fit_all_degrees_bf16.py",
+          "autonumerics_zero/evolution/constrained_ls_fitter.py"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "NumPy", "SciPy", "PyTorch"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "activation-coefficient-fit-matrix",
+        "output_class": "generated-fit",
+        "outputs": [
+          "outputs/all_degree_coefficients_fp16.json",
+          "outputs/all_degree_coefficients_bf16.json"
+        ],
+        "substitutions": {},
+        "notes": "The commands preserve checked-in historical artifacts by writing caller-selected outputs. Their split-rounded search arithmetic is not a packed-FMA emulator."
+      }
+    },
+    {
+      "id": "activation-bf16-header-generation",
+      "status": "runnable",
+      "command": ["python", "autonumerics_zero/evolution/generate_bf16_structs.py", "--bf16-input", "outputs/all_degree_coefficients_bf16.json", "--fallback-header", "autonumerics_zero/spline_ops/spline_structs_odd_bf16.cuh", "--output", "outputs/spline_structs_odd_bf16.generated.cuh", "--receipt-out", "outputs/spline_structs_odd_bf16.generated.cuh.provenance.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "autonumerics_zero/evolution/generate_bf16_structs.py",
+          "autonumerics_zero/spline_ops/spline_structs_odd_bf16.cuh"
+        ],
+        "generated_inputs": ["outputs/all_degree_coefficients_bf16.json"],
+        "software": ["Python 3.11+"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "activation-header-generation",
+        "output_class": "derived-artifact",
+        "outputs": [
+          "outputs/spline_structs_odd_bf16.generated.cuh",
+          "outputs/spline_structs_odd_bf16.generated.cuh.provenance.json"
+        ],
+        "substitutions": {},
+        "notes": "Generates the BF16 sigmoid, tanh, and SiLU-family structs from a new fit and copies the separately retained ERF/GELU structs from the reviewed fallback header. The sidecar hashes the fit, fallback, generator, and generated header; promotion into kernel source remains an explicit review step."
+      }
+    },
+    {
+      "id": "b2-tanh-backend-fit",
+      "status": "runnable",
+      "command": ["python", "autonumerics_zero/evolution/fit_fa4_tanh_backends.py", "--output", "results/fa4-tanh-backend-fits.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "autonumerics_zero/evolution/fit_fa4_tanh_backends.py",
+          "autonumerics_zero/evolution/constrained_ls_fitter.py"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "NumPy", "SciPy", "PyTorch"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "fa4-softcap-tanh-fit",
+        "output_class": "generated-fit",
+        "outputs": ["results/fa4-tanh-backend-fits.json"],
+        "substitutions": {},
+        "notes": "Fits the CuTe-FP32 target and replays the historical split-rounded BF16 search surrogate. Compiled packed-FMA measurements govern deployed device error."
+      }
+    },
+    {
+      "id": "gelu-fp16-fit",
+      "status": "runnable",
+      "command": ["python", "autonumerics_zero/evolution/fit_gelu_fp16.py", "--json-out", "outputs/gelu_coefficients_fp16.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "autonumerics_zero/evolution/fit_gelu_fp16.py",
+          "autonumerics_zero/evolution/fit_all_degrees.py",
+          "autonumerics_zero/evolution/constrained_ls_fitter.py"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "NumPy", "SciPy"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "coefficient-fit",
+        "output_class": "generated-fit",
+        "outputs": ["outputs/gelu_coefficients_fp16.json"],
+        "substitutions": {},
+        "notes": "Runs the retained historical GELU/ERF degree and clamp sweep and writes a new result."
+      }
+    },
+    {
+      "id": "b3-deployed-fit-audit",
+      "status": "runnable",
+      "command": ["python", "scripts/audit_b3_deployed_fit.py", "--grid-min", "-6", "--grid-max", "6", "--grid-points", "24577", "--json-out", "results/b3-deployed-fit-audit.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/audit_b3_deployed_fit.py",
+          "flash-attention/flash_attn/cute/polynomial_manifest.py",
+          "flash-attention/flash_attn/cute/handwritten_spline_ptx.py"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "clean pinned FlashAttention-4 Git checkout"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "deployed-arithmetic-audit",
+        "output_class": "source-bound-verification",
+        "outputs": ["results/b3-deployed-fit-audit.json"],
+        "substitutions": {},
+        "notes": "Verifies deployed B3 constants and packed-BF16 arithmetic; it is not the missing original fitter."
+      },
+      "protocol": "docs/B3_DEPLOYED_FIT_AUDIT.md"
     },
     {
       "id": "b1-b4-component-timing",
       "status": "hardware-gated",
       "hardware": "NVIDIA GB200/SM100",
-      "command": ["python", "scripts/benchmark_components.py"],
+      "command": ["python", "scripts/benchmark_components.py", "--cases", "b1,b2,b3,b4", "--warmup", "25", "--iterations", "100", "--rounds", "5", "--seed", "1234", "--json-out", "outputs/b1_b4_component_probes.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/benchmark_components.py",
+          "autonumerics_zero/spline_ops",
+          "flash-attention"
+        ],
+        "generated_inputs": [],
+        "software": ["PyTorch with CUDA", "built sfu-spline-ops", "pinned patched FlashAttention-4"],
+        "hardware": ["NVIDIA SM100 GPU"],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "component-benchmark",
+        "output_class": "new-measurement",
+        "outputs": ["outputs/b1_b4_component_probes.json"],
+        "substitutions": {},
+        "notes": "The command performs real synchronized CUDA measurements with the declared geometry."
+      },
       "artifact": "evidence/report-data/b1_b4_100_iteration_phase_probes_gb200.json",
       "legacy_entrypoint": "low-bits-training/scripts/benchmark_b1_b4_phase_probes.py"
     },
     {
-      "id": "b1-b4-complete-model-100-step",
+      "id": "b1-b4-complete-model-100-step-public-rerun",
+      "status": "hardware-gated",
+      "hardware": "B1-B3: 1 NVIDIA GB200; B4: 4 NVIDIA GB200s",
+      "preview_command": ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "native", "--phase", "model-probe"],
+      "command": ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "native", "--phase", "model-probe", "--execute"],
+      "additional_commands": [
+        ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "polynomial", "--phase", "model-probe", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b2", "--variant", "native", "--phase", "model-probe", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b2", "--variant", "polynomial", "--phase", "model-probe", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b3", "--variant", "native", "--phase", "model-probe", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b3", "--variant", "polynomial", "--phase", "model-probe", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b4", "--variant", "native", "--phase", "model-probe", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b4", "--variant", "polynomial", "--phase", "model-probe", "--execute"]
+      ],
+      "postprocess_commands": [
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b1", "--phase", "model-probe", "--native-dir", "B1_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B1_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b1_torchtitan_model_probe.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b2", "--phase", "model-probe", "--native-dir", "B2_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B2_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b2_torchtitan_model_probe.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b3", "--phase", "model-probe", "--native-dir", "B3_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B3_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b3_torchtitan_model_probe.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b4", "--phase", "model-probe", "--native-dir", "B4_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B4_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b4_torchtitan_model_probe.json"]
+      ],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/run_torchtitan.py",
+          "scripts/export_torchtitan_metrics.py",
+          "configs/torchtitan/paper_runs.json",
+          "torchtitan",
+          "flash-attention"
+        ],
+        "generated_inputs": [],
+        "software": ["TorchTitan release environment", "built sfu-spline-ops", "pinned patched FlashAttention-4"],
+        "hardware": ["One SM100 GPU for B1-B3", "Four SM100 GPUs for B4"],
+        "external_assets": ["Pinned Llama and DeepSeek tokenizer assets prepared by scripts/prepare_torchtitan_assets.py"]
+      },
+      "workflow": {
+        "kind": "matched-model-probe-matrix",
+        "output_class": "new-measurement",
+        "outputs": [
+          "results/b1_torchtitan_model_probe.json",
+          "results/b2_torchtitan_model_probe.json",
+          "results/b3_torchtitan_model_probe.json",
+          "results/b4_torchtitan_model_probe.json"
+        ],
+        "substitutions": {
+          "B1_NATIVE_TENSORBOARD_DIRECTORY": "Completed B1 native TensorBoard event directory",
+          "B1_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B1 polynomial TensorBoard event directory",
+          "B2_NATIVE_TENSORBOARD_DIRECTORY": "Completed B2 native TensorBoard event directory",
+          "B2_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B2 polynomial TensorBoard event directory",
+          "B3_NATIVE_TENSORBOARD_DIRECTORY": "Completed B3 native TensorBoard event directory",
+          "B3_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B3 polynomial TensorBoard event directory",
+          "B4_NATIVE_TENSORBOARD_DIRECTORY": "Completed B4 native TensorBoard event directory",
+          "B4_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B4 polynomial TensorBoard event directory"
+        },
+        "notes": "Run every native/polynomial arm, then export each pair. The preview prints only the representative B1 native invocation."
+      },
+      "protocol": "configs/torchtitan/paper_runs.json",
+      "reason": "The public TorchTitan protocol creates new source-bound measurements and does not retroactively reproduce the unavailable dirty historical harness."
+    },
+    {
+      "id": "b1-b4-complete-model-100-step-historical",
       "status": "historical-only",
       "command": [],
+      "prerequisites": {},
+      "workflow": {
+        "kind": "historical-evidence-audit",
+        "output_class": "historical-evidence",
+        "outputs": [],
+        "substitutions": {},
+        "notes": "The original complete invocation, raw logs, and clean immutable source binding are unavailable."
+      },
       "artifacts": [
         "evidence/report-data/b1_b4_full_model_100step_gb200.json",
         "evidence/report-data/b4_27a4b_local_100step_gb200.json"
       ],
-      "reason": "The B1-B3 invocation was reconstructed and the B4 artifact names an uncommitted distributed-harness worktree. The internal training framework is intentionally not copied."
+      "reason": "The B1-B3 invocation was reconstructed and the B4 artifact names an uncommitted distributed-harness worktree."
     },
     {
-      "id": "open-weight-evaluation",
+      "id": "open-weight-quality-evaluation",
       "status": "hardware-gated",
       "hardware": "CUDA GPU plus model-specific memory",
-      "command": ["python", "scripts/run_open_weight_suite.py", "--config", "configs/open_weight_paper.json", "--dry-run"],
+      "preview_command": ["python", "scripts/run_open_weight_suite.py", "--python", "HF_4_48_PYTHON", "--config", "configs/open_weight_paper.json", "--environments", "configs/eval_environments/profiles.json", "--models", "qwen2p5_7b", "--mode", "eval", "--quality-eval", "--output-dir", "outputs/open_weight/quality", "--dry-run"],
+      "command": ["python", "scripts/run_open_weight_suite.py", "--python", "HF_4_48_PYTHON", "--config", "configs/open_weight_paper.json", "--environments", "configs/eval_environments/profiles.json", "--models", "qwen2p5_7b", "--mode", "eval", "--quality-eval", "--output-dir", "outputs/open_weight/quality"],
+      "additional_commands": [
+        ["python", "scripts/run_open_weight_suite.py", "--python", "HF_5_9_PYTHON", "--config", "configs/open_weight_paper.json", "--environments", "configs/eval_environments/profiles.json", "--models", "qwen3_30b_a3b_base,glm4p7_flash,gpt_oss_120b", "--mode", "eval", "--quality-eval", "--output-dir", "outputs/open_weight/quality"],
+        ["python", "scripts/run_open_weight_suite.py", "--python", "HF_4_57_PYTHON", "--config", "configs/open_weight_paper.json", "--environments", "configs/eval_environments/profiles.json", "--models", "kimi_linear_48b_a3b_base", "--mode", "eval", "--quality-eval", "--output-dir", "outputs/open_weight/quality"]
+      ],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/run_open_weight_suite.py",
+          "scripts/benchmark_open_weights.py",
+          "configs/open_weight_paper.json",
+          "configs/lm_eval_paper_tasks.json",
+          "configs/eval_environments",
+          "lm-evaluation-harness",
+          "flash-attention"
+        ],
+        "generated_inputs": [],
+        "software": ["One matching pinned evaluation environment per model", "built sfu-spline-ops", "clean pinned lm-evaluation-harness checkout", "clean pinned FlashAttention checkout for the Kimi profile only"],
+        "hardware": ["CUDA GPU with enough memory for each selected model"],
+        "external_assets": ["Legally obtained pinned model and tokenizer revisions", "Pinned evaluation datasets", "Provider authentication when required"]
+      },
+      "workflow": {
+        "kind": "downstream-quality-matrix",
+        "output_class": "new-measurement",
+        "outputs": ["outputs/open_weight/quality"],
+        "substitutions": {
+          "HF_4_48_PYTHON": "Python executable in the pinned Transformers 4.48.2 Qwen2.5 environment",
+          "HF_5_9_PYTHON": "Python executable in the pinned Transformers 5.9.0 MoE environment",
+          "HF_4_57_PYTHON": "Python executable in the pinned Transformers 4.57.6 Kimi environment"
+        },
+        "notes": "Run the three commands with their distinct pinned environments. The preview prints only the representative Qwen2.5 child command. lm-evaluation-harness is required for every quality artifact; FlashAttention is required only for the Kimi profile. TorchTitan is unrelated to this workflow."
+      },
       "artifact": "evidence/report-data/sollya_eval_results.csv",
-      "protocol": "evidence/report-data/open_weight_eval_protocol.json",
-      "legacy_entrypoint": "low-bits-training@393b69e/scripts/run_hf_poly_eval_suite.py"
+      "protocol": "configs/open_weight_paper.json",
+      "task_protocol": "configs/lm_eval_paper_tasks.json",
+      "historical_protocol": "evidence/report-data/open_weight_eval_protocol.json",
+      "legacy_entrypoint": "low-bits-training@393b69e/scripts/run_hf_poly_eval_suite.py",
+      "reason": "The public protocol pins model/tokenizer inputs, evaluator source, task definitions, seeds, few-shot counts, and task-dataset revisions."
+    },
+    {
+      "id": "open-weight-throughput-evaluation",
+      "status": "hardware-gated",
+      "hardware": "CUDA GPU plus model-specific memory",
+      "preview_command": ["python", "scripts/run_open_weight_suite.py", "--python", "HF_4_48_PYTHON", "--config", "configs/open_weight_paper.json", "--environments", "configs/eval_environments/profiles.json", "--models", "qwen2p5_7b", "--mode", "both", "--no-eval", "--output-dir", "outputs/open_weight/throughput", "--dry-run"],
+      "command": ["python", "scripts/run_open_weight_suite.py", "--python", "HF_4_48_PYTHON", "--config", "configs/open_weight_paper.json", "--environments", "configs/eval_environments/profiles.json", "--models", "qwen2p5_7b", "--mode", "both", "--no-eval", "--output-dir", "outputs/open_weight/throughput"],
+      "additional_commands": [
+        ["python", "scripts/run_open_weight_suite.py", "--python", "HF_5_9_PYTHON", "--config", "configs/open_weight_paper.json", "--environments", "configs/eval_environments/profiles.json", "--models", "qwen3_30b_a3b_base,glm4p7_flash,gpt_oss_120b", "--mode", "both", "--no-eval", "--output-dir", "outputs/open_weight/throughput"],
+        ["python", "scripts/run_open_weight_suite.py", "--python", "HF_4_57_PYTHON", "--config", "configs/open_weight_paper.json", "--environments", "configs/eval_environments/profiles.json", "--models", "kimi_linear_48b_a3b_base", "--mode", "both", "--no-eval", "--output-dir", "outputs/open_weight/throughput"]
+      ],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/run_open_weight_suite.py",
+          "scripts/benchmark_open_weights.py",
+          "configs/open_weight_paper.json",
+          "configs/eval_environments",
+          "flash-attention"
+        ],
+        "generated_inputs": [],
+        "software": ["One matching pinned evaluation environment per model", "built sfu-spline-ops", "clean pinned FlashAttention checkout for the Kimi profile only"],
+        "hardware": ["CUDA GPU with enough memory for each selected model"],
+        "external_assets": ["Legally obtained pinned model and tokenizer revisions", "Provider authentication when required"]
+      },
+      "workflow": {
+        "kind": "downstream-throughput-matrix",
+        "output_class": "new-measurement",
+        "outputs": ["outputs/open_weight/throughput"],
+        "substitutions": {
+          "HF_4_48_PYTHON": "Python executable in the pinned Transformers 4.48.2 Qwen2.5 environment",
+          "HF_5_9_PYTHON": "Python executable in the pinned Transformers 5.9.0 MoE environment",
+          "HF_4_57_PYTHON": "Python executable in the pinned Transformers 4.57.6 Kimi environment"
+        },
+        "notes": "Run the three commands with their distinct pinned environments. The preview prints only the representative Qwen2.5 child command. FlashAttention is required only for the Kimi profile; lm-evaluation-harness and TorchTitan are not throughput prerequisites."
+      },
+      "protocol": "configs/open_weight_paper.json"
+    },
+    {
+      "id": "open-weight-result-summary",
+      "status": "runnable",
+      "command": ["python", "scripts/summarize_open_weight_results.py", "outputs/open_weight/quality", "outputs/open_weight/throughput", "--config", "configs/open_weight_paper.json", "--task-config", "configs/lm_eval_paper_tasks.json", "--environments", "configs/eval_environments/profiles.json", "--experiment-manifest", "repro/experiments.json", "--mode", "combined", "--csv-out", "results/open_weight_summary.csv", "--markdown-out", "results/open_weight_summary.md"],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/summarize_open_weight_results.py",
+          "configs/open_weight_paper.json",
+          "configs/lm_eval_paper_tasks.json",
+          "configs/eval_environments/profiles.json",
+          "repro/experiments.json"
+        ],
+        "generated_inputs": [
+          "outputs/open_weight/quality",
+          "outputs/open_weight/throughput"
+        ],
+        "software": ["Python 3.11+"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "downstream-result-postprocess",
+        "output_class": "derived-artifact",
+        "outputs": [
+          "results/open_weight_summary.csv",
+          "results/open_weight_summary.md"
+        ],
+        "substitutions": {},
+        "notes": "Consumes completed public quality and throughput JSON directories; retained historical W&B summaries are not accepted as inputs."
+      }
     },
     {
       "id": "paired-pretraining-plot",
       "status": "runnable",
-      "command": ["python", "evidence/pretraining/plot_paired_loss.py"],
+      "command": ["python", "evidence/pretraining/plot_paired_loss.py", "--input", "evidence/report-data/b1_b4_paired_loss_curves.csv", "--output", "results/b1_b4_paired_loss_curves.pdf"],
+      "prerequisites": {
+        "repository_paths": [
+          "evidence/pretraining/plot_paired_loss.py",
+          "evidence/report-data/b1_b4_paired_loss_curves.csv"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "Matplotlib", "NumPy", "pandas"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "historical-evidence-plot",
+        "output_class": "derived-artifact",
+        "outputs": ["results/b1_b4_paired_loss_curves.pdf"],
+        "substitutions": {},
+        "notes": "Replots retained trajectories offline and creates no new training evidence."
+      },
       "artifact": "evidence/report-data/b1_b4_paired_loss_curves.csv",
       "provenance": "evidence/report-data/b1_b4_paired_loss_curves.provenance.json"
     },
     {
-      "id": "paired-pretraining-full-rerun",
+      "id": "paired-pretraining-public-rerun",
+      "status": "hardware-gated",
+      "hardware": "32 NVIDIA GB200s plus a multi-node rendezvous",
+      "preview_command": ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b1_llama3_8b/checkpoint/step-0", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID"],
+      "setup_commands": [
+        ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "native", "--phase", "seed-checkpoint", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b2", "--variant", "native", "--phase", "seed-checkpoint", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b3", "--variant", "native", "--phase", "seed-checkpoint", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b4", "--variant", "native", "--phase", "seed-checkpoint", "--execute"]
+      ],
+      "command": ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b1_llama3_8b/checkpoint/step-0", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+      "additional_commands": [
+        ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "polynomial", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b1_llama3_8b/checkpoint/step-0", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b2", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b2_llama3_8b/checkpoint/step-0", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b2", "--variant", "polynomial", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b2_llama3_8b/checkpoint/step-0", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b3", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b3_llama3_8b/checkpoint/step-0", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b3", "--variant", "polynomial", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b3_llama3_8b/checkpoint/step-0", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b4", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b4_deepseek_27a4b/checkpoint/step-0", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b4", "--variant", "polynomial", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b4_deepseek_27a4b/checkpoint/step-0", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"]
+      ],
+      "postprocess_commands": [
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b1", "--phase", "pretraining", "--native-dir", "B1_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B1_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b1_torchtitan_pretraining.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b2", "--phase", "pretraining", "--native-dir", "B2_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B2_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b2_torchtitan_pretraining.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b3", "--phase", "pretraining", "--native-dir", "B3_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B3_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b3_torchtitan_pretraining.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b4", "--phase", "pretraining", "--native-dir", "B4_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B4_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b4_torchtitan_pretraining.json"]
+      ],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/run_torchtitan.py",
+          "scripts/export_torchtitan_metrics.py",
+          "configs/torchtitan/paper_runs.json",
+          "torchtitan",
+          "flash-attention"
+        ],
+        "generated_inputs": [
+          "outputs/torchtitan/seeds/b1_llama3_8b/checkpoint/step-0",
+          "outputs/torchtitan/seeds/b2_llama3_8b/checkpoint/step-0",
+          "outputs/torchtitan/seeds/b3_llama3_8b/checkpoint/step-0",
+          "outputs/torchtitan/seeds/b4_deepseek_27a4b/checkpoint/step-0"
+        ],
+        "software": ["TorchTitan release environment", "built sfu-spline-ops", "pinned patched FlashAttention-4", "multi-node torchrun rendezvous"],
+        "hardware": ["32 NVIDIA GB200/SM100 GPUs"],
+        "external_assets": ["Prepared pinned tokenizers", "Pinned public training datasets", "Dataset-provider access"]
+      },
+      "workflow": {
+        "kind": "seeded-paired-pretraining-matrix",
+        "output_class": "new-measurement",
+        "outputs": [
+          "results/b1_torchtitan_pretraining.json",
+          "results/b2_torchtitan_pretraining.json",
+          "results/b3_torchtitan_pretraining.json",
+          "results/b4_torchtitan_pretraining.json"
+        ],
+        "substitutions": {
+          "RDZV_HOST": "Hostname or address of the TorchElastic rendezvous endpoint",
+          "RDZV_PORT": "Open rendezvous port",
+          "RUN_ID": "Unique TorchElastic run identifier for each arm",
+          "B1_NATIVE_TENSORBOARD_DIRECTORY": "Completed B1 native TensorBoard event directory",
+          "B1_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B1 polynomial TensorBoard event directory",
+          "B2_NATIVE_TENSORBOARD_DIRECTORY": "Completed B2 native TensorBoard event directory",
+          "B2_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B2 polynomial TensorBoard event directory",
+          "B3_NATIVE_TENSORBOARD_DIRECTORY": "Completed B3 native TensorBoard event directory",
+          "B3_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B3 polynomial TensorBoard event directory",
+          "B4_NATIVE_TENSORBOARD_DIRECTORY": "Completed B4 native TensorBoard event directory",
+          "B4_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B4 polynomial TensorBoard event directory"
+        },
+        "notes": "Create one seed checkpoint per case, assign a fresh RUN_ID to every arm, launch each command on the configured nodes, and export each completed pair."
+      },
+      "protocol": "configs/torchtitan/paper_runs.json",
+      "reason": "This is a declared public 100B-token protocol with new public seed, dataset, tokenizer, and initialization choices."
+    },
+    {
+      "id": "paired-pretraining-historical-exact-rerun",
       "status": "historical-only",
       "command": [],
-      "reason": "Original launch manifests, initialization/data-order proof, datasets, checkpoints, and complete runtime locks are unavailable."
+      "prerequisites": {},
+      "workflow": {
+        "kind": "blocked-historical-rerun",
+        "output_class": "historical-evidence",
+        "outputs": [],
+        "substitutions": {},
+        "notes": "Original launch manifests, initialization and data-order proof, datasets, checkpoints, and complete runtime locks are unavailable."
+      },
+      "reason": "No exact historical rerun command exists."
+    },
+    {
+      "id": "torchtitan-held-out-validation",
+      "status": "hardware-gated",
+      "hardware": "32 NVIDIA GB200s plus a multi-node rendezvous",
+      "preview_command": ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b1_llama3_8b/checkpoint/step-0", "--validation", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID"],
+      "setup_commands": [
+        ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "native", "--phase", "seed-checkpoint", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b2", "--variant", "native", "--phase", "seed-checkpoint", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b3", "--variant", "native", "--phase", "seed-checkpoint", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b4", "--variant", "native", "--phase", "seed-checkpoint", "--execute"]
+      ],
+      "command": ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b1_llama3_8b/checkpoint/step-0", "--validation", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+      "additional_commands": [
+        ["python", "scripts/run_torchtitan.py", "--case", "b1", "--variant", "polynomial", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b1_llama3_8b/checkpoint/step-0", "--validation", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b2", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b2_llama3_8b/checkpoint/step-0", "--validation", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b2", "--variant", "polynomial", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b2_llama3_8b/checkpoint/step-0", "--validation", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b3", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b3_llama3_8b/checkpoint/step-0", "--validation", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b3", "--variant", "polynomial", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b3_llama3_8b/checkpoint/step-0", "--validation", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b4", "--variant", "native", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b4_deepseek_27a4b/checkpoint/step-0", "--validation", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b4", "--variant", "polynomial", "--phase", "pretraining", "--seed-checkpoint", "outputs/torchtitan/seeds/b4_deepseek_27a4b/checkpoint/step-0", "--validation", "--torchrun-arg=--rdzv-backend=c10d", "--torchrun-arg=--rdzv-endpoint=RDZV_HOST:RDZV_PORT", "--torchrun-arg=--rdzv-id=RUN_ID", "--execute"]
+      ],
+      "postprocess_commands": [
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b1", "--phase", "pretraining", "--require-validation", "--native-dir", "B1_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B1_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b1_torchtitan_validation.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b2", "--phase", "pretraining", "--require-validation", "--native-dir", "B2_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B2_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b2_torchtitan_validation.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b3", "--phase", "pretraining", "--require-validation", "--native-dir", "B3_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B3_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b3_torchtitan_validation.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b4", "--phase", "pretraining", "--require-validation", "--native-dir", "B4_NATIVE_TENSORBOARD_DIRECTORY", "--polynomial-dir", "B4_POLYNOMIAL_TENSORBOARD_DIRECTORY", "--output", "results/b4_torchtitan_validation.json"]
+      ],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/run_torchtitan.py",
+          "scripts/export_torchtitan_metrics.py",
+          "configs/torchtitan/paper_runs.json",
+          "torchtitan",
+          "flash-attention"
+        ],
+        "generated_inputs": [
+          "outputs/torchtitan/seeds/b1_llama3_8b/checkpoint/step-0",
+          "outputs/torchtitan/seeds/b2_llama3_8b/checkpoint/step-0",
+          "outputs/torchtitan/seeds/b3_llama3_8b/checkpoint/step-0",
+          "outputs/torchtitan/seeds/b4_deepseek_27a4b/checkpoint/step-0"
+        ],
+        "software": ["TorchTitan release environment", "built sfu-spline-ops", "pinned patched FlashAttention-4", "multi-node torchrun rendezvous"],
+        "hardware": ["32 NVIDIA GB200/SM100 GPUs"],
+        "external_assets": ["Prepared pinned Llama tokenizer", "Pinned public training and validation dataset", "Dataset-provider access"]
+      },
+      "workflow": {
+        "kind": "paired-held-out-validation",
+        "output_class": "new-measurement",
+        "outputs": [
+          "results/b1_torchtitan_validation.json",
+          "results/b2_torchtitan_validation.json",
+          "results/b3_torchtitan_validation.json",
+          "results/b4_torchtitan_validation.json"
+        ],
+        "substitutions": {
+          "RDZV_HOST": "Hostname or address of the TorchElastic rendezvous endpoint",
+          "RDZV_PORT": "Open rendezvous port",
+          "RUN_ID": "Unique TorchElastic run identifier for each arm",
+          "B1_NATIVE_TENSORBOARD_DIRECTORY": "Completed B1 native TensorBoard event directory",
+          "B1_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B1 polynomial TensorBoard event directory",
+          "B2_NATIVE_TENSORBOARD_DIRECTORY": "Completed B2 native TensorBoard event directory",
+          "B2_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B2 polynomial TensorBoard event directory",
+          "B3_NATIVE_TENSORBOARD_DIRECTORY": "Completed B3 native TensorBoard event directory",
+          "B3_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B3 polynomial TensorBoard event directory",
+          "B4_NATIVE_TENSORBOARD_DIRECTORY": "Completed B4 native TensorBoard event directory",
+          "B4_POLYNOMIAL_TENSORBOARD_DIRECTORY": "Completed B4 polynomial TensorBoard event directory"
+        },
+        "notes": "Validation was disabled historically. Run and export every B1-B4 pair to create new public validation results."
+      },
+      "protocol": "configs/torchtitan/paper_runs.json"
     },
     {
       "id": "fractional-exp2-fit",
       "status": "runnable",
       "command": ["python", "autonumerics_zero/evolution/fit_exp2_softmax.py", "--samples", "1000001", "--json-out", "outputs/b5_exp2_softmax_constrained_fits.json"],
+      "prerequisites": {
+        "repository_paths": ["autonumerics_zero/evolution/fit_exp2_softmax.py"],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "NumPy"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "fractional-exp2-fit",
+        "output_class": "generated-fit",
+        "outputs": ["outputs/b5_exp2_softmax_constrained_fits.json"],
+        "substitutions": {},
+        "notes": "Dense sampled minimax values are grid estimates rather than formal certificates."
+      },
       "artifact": "evidence/report-data/b5_exp2_softmax_constrained_fits.json"
+    },
+    {
+      "id": "flash-sigmoid-sequence-specific-d2-fit",
+      "status": "runnable",
+      "command": ["python", "autonumerics_zero/evolution/fit_flash_sigmoid_exp2_d2.py", "--sequence-length", "4096", "--score-sigma", "1.0", "--seed", "1234", "--maxiter", "300", "--json-out", "results/flash-sigmoid-d2-fit.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "autonumerics_zero/evolution/fit_flash_sigmoid_exp2_d2.py"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "NumPy", "SciPy"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "flash-sigmoid-d2-fit",
+        "output_class": "generated-fit",
+        "outputs": ["results/flash-sigmoid-d2-fit.json"],
+        "substitutions": {},
+        "notes": "Writes the sequence-length-specific coefficients, PTX hexadecimal literals, and error metrics to a caller-selected JSON artifact."
+      }
     },
     {
       "id": "fractional-exp2-isolated",
       "status": "hardware-gated",
       "hardware": "NVIDIA GB200/SM100",
       "command": ["python", "autonumerics_zero/experiments/benchmark_exp2_pwl2.py", "--json-out", "outputs/exp2_pwl2_isolated.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "autonumerics_zero/experiments/benchmark_exp2_pwl2.py",
+          "autonumerics_zero/cuda_benchmarks/benchmark_exp2_pwl2.cu"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "CUDA 13 NVCC"],
+        "hardware": ["NVIDIA SM100 GPU"],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "isolated-exp2-benchmark",
+        "output_class": "new-measurement",
+        "outputs": ["outputs/exp2_pwl2_isolated.json"],
+        "substitutions": {},
+        "notes": "Compiles and runs the pure-CUDA benchmark; it is not a preview command."
+      },
       "artifact": "evidence/report-data/exp2_pwl2_isolated_gb200.json"
     },
     {
       "id": "fractional-exp2-integrated-fa4",
       "status": "hardware-gated",
       "hardware": "NVIDIA GB200/SM100",
-      "command": ["python", "scripts/benchmark_fa4_exp2_mix.py", "--json-out", "outputs/exp2_fa4.json"],
+      "command": ["python", "scripts/benchmark_fa4_exp2_mix.py", "--batch-size", "1", "--sequence-length", "4096", "--heads", "32", "--kv-heads", "8", "--head-dim", "128", "--warmup", "10", "--iterations", "100", "--rounds", "15", "--seed", "1234", "--variants", "sfu=d3:0:0,d3_default=d3:auto:0,d3_matched=d3:12:32,pwl2_matched=pwl2_safe_f16:12:32,d2_matched=d2_safe:12:32", "--json-out", "outputs/b5_exp2_apples_to_apples_d3_pwl2_d2.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/benchmark_fa4_exp2_mix.py",
+          "flash-attention"
+        ],
+        "generated_inputs": [],
+        "software": ["PyTorch with CUDA", "pinned patched FlashAttention-4"],
+        "hardware": ["NVIDIA SM100 GPU"],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "integrated-fa4-exp2-benchmark",
+        "output_class": "new-measurement",
+        "outputs": ["outputs/b5_exp2_apples_to_apples_d3_pwl2_d2.json"],
+        "substitutions": {},
+        "notes": "Uses the retained causal Llama-8B GQA geometry and exact matched route string."
+      },
       "artifact": "evidence/report-data/b5_exp2_apples_to_apples_d3_pwl2_d2_gb200.json"
     },
     {
-      "id": "rope-fit-and-smoke",
+      "id": "b5-routed-exp2-torchtitan-model-probe-public-rerun",
       "status": "hardware-gated",
-      "command": ["python", "-m", "sfu_repro.rope.benchmark_cuda_fused_rope", "--output", "outputs/rope.json"],
-      "reason": "The driver is portable, but the paper's original raw integrated timing record was not retained."
+      "hardware": "One NVIDIA GB200/SM100",
+      "preview_command": ["python", "scripts/run_torchtitan.py", "--case", "b5", "--variant", "native", "--phase", "model-probe"],
+      "command": ["python", "scripts/run_torchtitan.py", "--case", "b5", "--variant", "native", "--phase", "model-probe", "--execute"],
+      "additional_commands": [
+        ["python", "scripts/run_torchtitan.py", "--case", "b5", "--variant", "pwl2_safe_f16", "--phase", "model-probe", "--execute"],
+        ["python", "scripts/run_torchtitan.py", "--case", "b5", "--variant", "d2_safe", "--phase", "model-probe", "--execute"]
+      ],
+      "postprocess_commands": [
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b5", "--phase", "model-probe", "--native-dir", "NATIVE_TENSORBOARD_DIRECTORY", "--candidate-dir", "PWL2_TENSORBOARD_DIRECTORY", "--candidate-name", "pwl2_safe_f16", "--output", "results/b5_pwl2_safe_f16_torchtitan_model_probe.json"],
+        ["python", "scripts/export_torchtitan_metrics.py", "--case", "b5", "--phase", "model-probe", "--native-dir", "NATIVE_TENSORBOARD_DIRECTORY", "--candidate-dir", "D2_TENSORBOARD_DIRECTORY", "--candidate-name", "d2_safe", "--output", "results/b5_d2_safe_torchtitan_model_probe.json"]
+      ],
+      "prerequisites": {
+        "repository_paths": [
+          "scripts/run_torchtitan.py",
+          "scripts/export_torchtitan_metrics.py",
+          "configs/torchtitan/paper_runs.json",
+          "torchtitan",
+          "flash-attention"
+        ],
+        "generated_inputs": [],
+        "software": ["TorchTitan release environment", "pinned patched FlashAttention-4"],
+        "hardware": ["One NVIDIA SM100 GPU"],
+        "external_assets": ["Prepared pinned Llama tokenizer"]
+      },
+      "workflow": {
+        "kind": "routed-exp2-model-probe",
+        "output_class": "new-measurement",
+        "outputs": [
+          "results/b5_pwl2_safe_f16_torchtitan_model_probe.json",
+          "results/b5_d2_safe_torchtitan_model_probe.json"
+        ],
+        "substitutions": {
+          "NATIVE_TENSORBOARD_DIRECTORY": "Completed B5 native TensorBoard event directory",
+          "PWL2_TENSORBOARD_DIRECTORY": "Completed B5 PWL2-safe-FP16 TensorBoard event directory",
+          "D2_TENSORBOARD_DIRECTORY": "Completed B5 D2-safe TensorBoard event directory"
+        },
+        "notes": "Run all three arms and export both native/candidate pairs with the manifest-defined 20-80 window."
+      },
+      "protocol": "configs/torchtitan/paper_runs.json",
+      "historical_evidence": [
+        "evidence/report-data/b5_exp2_pwl2_safe_8b_probe_fwd_bwd_gb200.json",
+        "evidence/report-data/b5_exp2_d2_safe_8b_probe_fwd_bwd_gb200.json",
+        "evidence/report-data/b5_exp2_apples_to_apples_d3_pwl2_d2_gb200.json"
+      ],
+      "reason": "Compile-disabled execution is source-derived rather than runtime-attested; seed, dataset, tokenizer, and TorchTitan runtime are new public choices."
+    },
+    {
+      "id": "rope-polynomial-fitting",
+      "status": "runnable",
+      "command": ["python", "-m", "sfu_repro.rope.fit_polynomial_sincos", "--basis", "parity", "--weighting", "uniform", "--sin-terms", "4", "--cos-terms", "4", "--output", "results/rope/quarter-turn-uniform-d7-d6.json"],
+      "additional_commands": [
+        ["python", "-m", "sfu_repro.rope.fit_polynomial_sincos", "--basis", "parity", "--weighting", "rope", "--sin-terms", "4", "--cos-terms", "4", "--head-dim", "128", "--max-seq-len", "8192", "--theta", "500000", "--output", "results/rope/quarter-turn-rope-d7-d6.json"],
+        ["python", "-m", "sfu_repro.rope.fit_polynomial_sincos", "--basis", "full", "--weighting", "rope", "--sin-terms", "4", "--cos-terms", "4", "--head-dim", "128", "--max-seq-len", "8192", "--theta", "500000", "--output", "results/rope/quarter-turn-rope-full-d7-d6.json"],
+        ["python", "-m", "sfu_repro.rope.fit_polynomial_sincos", "--basis", "parity", "--reduction", "quarter-turn", "--fit-method", "sollya", "--weighting", "uniform", "--sin-terms", "2", "--cos-terms", "3", "--coefficient-dtype", "float32", "--output", "results/rope/quarter-turn-sollya-d3-d4.json"],
+        ["python", "-m", "sfu_repro.rope.fit_polynomial_sincos", "--basis", "parity", "--reduction", "half-turn", "--fit-method", "least-squares", "--weighting", "uniform", "--sin-terms", "3", "--cos-terms", "3", "--coefficient-dtype", "float32", "--output", "results/rope/half-turn-least-squares-d5-d4.json"],
+        ["python", "-m", "sfu_repro.rope.fit_polynomial_sincos", "--basis", "parity", "--reduction", "half-turn", "--fit-method", "sollya", "--weighting", "uniform", "--sin-terms", "3", "--cos-terms", "3", "--coefficient-dtype", "float32", "--output", "results/rope/half-turn-sollya-d5-d4.json"]
+      ],
+      "prerequisites": {
+        "repository_paths": [
+          "src/sfu_repro/rope/fit_polynomial_sincos.py",
+          "src/sfu_repro/rope/polynomial_sincos.py"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "NumPy", "PyTorch", "Sollya for the commands selecting fit-method sollya"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "rope-fit-matrix",
+        "output_class": "generated-fit",
+        "outputs": [
+          "results/rope/quarter-turn-uniform-d7-d6.json",
+          "results/rope/quarter-turn-rope-d7-d6.json",
+          "results/rope/quarter-turn-rope-full-d7-d6.json",
+          "results/rope/quarter-turn-sollya-d3-d4.json",
+          "results/rope/half-turn-least-squares-d5-d4.json",
+          "results/rope/half-turn-sollya-d5-d4.json"
+        ],
+        "substitutions": {},
+        "notes": "Reproduces the checked-in least-squares and Sollya procedures, not the missing historical FP16 lattice search."
+      },
+      "protocol": "src/sfu_repro/rope/README.md"
+    },
+    {
+      "id": "rope-portable-numerical-check",
+      "status": "runnable",
+      "command": ["python", "-m", "sfu_repro.rope.benchmark_polynomial_sincos", "--device", "cpu", "--head-dim", "128", "--max-seq-len", "8192", "--theta", "500000", "--output", "results/rope/cpu-table-check.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "src/sfu_repro/rope/benchmark_polynomial_sincos.py",
+          "src/sfu_repro/rope/polynomial_sincos.py"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "PyTorch", "NumPy"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "rope-portable-numerics",
+        "output_class": "source-bound-verification",
+        "outputs": ["results/rope/cpu-table-check.json"],
+        "substitutions": {},
+        "notes": "CPU timing is a smoke measurement; the numerical comparisons are portable checks."
+      },
+      "protocol": "src/sfu_repro/rope/README.md"
+    },
+    {
+      "id": "rope-cache-hbm-and-repeated-evaluation",
+      "status": "hardware-gated",
+      "hardware": "NVIDIA GB200/SM100",
+      "command": ["python", "-m", "sfu_repro.rope.benchmark_cuda_sincos", "--element-counts", "4096,65536,1048576,16777216,134217728", "--head-dim", "128", "--theta", "500000", "--warmup", "10", "--repeats", "50", "--trials", "5", "--compute-element-count", "262144", "--compute-iterations", "64", "--output", "results/rope/cache-hbm-and-repeated.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "src/sfu_repro/rope/benchmark_cuda_sincos.py",
+          "autonumerics_zero/spline_ops/sincos_kernels.cu"
+        ],
+        "generated_inputs": [],
+        "software": ["PyTorch with CUDA", "SM100 build of sfu-spline-ops"],
+        "hardware": ["NVIDIA SM100 GPU with enough memory for the 134217728-element row"],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "rope-cache-to-hbm-benchmark",
+        "output_class": "new-measurement",
+        "outputs": ["results/rope/cache-hbm-and-repeated.json"],
+        "substitutions": {},
+        "notes": "Measures cache-resident through HBM-resident arrays and a repeated-evaluation control."
+      },
+      "protocol": "src/sfu_repro/rope/README.md"
+    },
+    {
+      "id": "rope-table-and-repeated-evaluator",
+      "status": "hardware-gated",
+      "hardware": "NVIDIA GB200/SM100",
+      "command": ["python", "-m", "sfu_repro.rope.benchmark_cuda_rope_sincos", "--sequence-length", "8192", "--head-dim", "128", "--theta", "500000", "--warmup", "20", "--repeats", "500", "--trials", "11", "--compute-iterations", "64", "--compute-repeats", "300", "--output", "results/rope/rope-table-and-repeated.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "src/sfu_repro/rope/benchmark_cuda_rope_sincos.py",
+          "autonumerics_zero/spline_ops/sincos_kernels.cu"
+        ],
+        "generated_inputs": [],
+        "software": ["PyTorch with CUDA", "SM100 build of sfu-spline-ops"],
+        "hardware": ["NVIDIA SM100 GPU"],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "rope-table-evaluator-benchmark",
+        "output_class": "new-measurement",
+        "outputs": ["results/rope/rope-table-and-repeated.json"],
+        "substitutions": {},
+        "notes": "Exercises the Q0.32 phase-increment table path and repeated evaluator."
+      },
+      "protocol": "src/sfu_repro/rope/README.md"
+    },
+    {
+      "id": "rope-fused-integration",
+      "status": "hardware-gated",
+      "hardware": "NVIDIA GB200/SM100",
+      "command": ["python", "-m", "sfu_repro.rope.benchmark_cuda_fused_rope", "--batch-size", "1", "--sequence-length", "8192", "--head-dim", "128", "--theta", "500000", "--head-configs", "1:1,8:2,32:8", "--warmup", "10", "--repeats", "100", "--trials", "9", "--seed", "1234", "--output", "results/rope/fused-rope.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "src/sfu_repro/rope/benchmark_cuda_fused_rope.py",
+          "autonumerics_zero/spline_ops/sincos_kernels.cu"
+        ],
+        "generated_inputs": [],
+        "software": ["PyTorch with CUDA", "SM100 build of sfu-spline-ops"],
+        "hardware": ["NVIDIA SM100 GPU"],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "fused-rope-integration-benchmark",
+        "output_class": "new-measurement",
+        "outputs": ["results/rope/fused-rope.json"],
+        "substitutions": {},
+        "notes": "Keeps Q/K loads, packed rotation, transpose, and stores common across table, native-SFU, and polynomial variants."
+      },
+      "protocol": "src/sfu_repro/rope/README.md",
+      "reason": "The historical raw per-trial integrated timing record was not retained; this command creates a new public result."
+    },
+    {
+      "id": "rope-sass-audit",
+      "status": "hardware-gated",
+      "hardware": "CUDA build host with cuobjdump and the built sfu-spline-ops extension",
+      "command": ["python", "autonumerics_zero/spline_ops/audit_sincos_sass.py", "SPLINE_OPS_EXTENSION", "--json-out", "results/rope/sincos-sass-audit.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "autonumerics_zero/spline_ops/audit_sincos_sass.py",
+          "autonumerics_zero/spline_ops/sincos_kernels.cu"
+        ],
+        "generated_inputs": ["SPLINE_OPS_EXTENSION"],
+        "software": ["Python 3.11+", "CUDA cuobjdump", "built sfu-spline-ops"],
+        "hardware": ["CUDA build targeting the architecture under audit"],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "compiled-sass-audit",
+        "output_class": "binary-bound-verification",
+        "outputs": ["results/rope/sincos-sass-audit.json"],
+        "substitutions": {
+          "SPLINE_OPS_EXTENSION": "Path to the compiled spline_ops shared library"
+        },
+        "notes": "Checks the compiled native and polynomial sine/cosine paths for their expected SASS instruction families and hashes the exact extension, source, audit script, and cuobjdump binary. The extension hash identifies the audited binary; no build receipt proves that it was compiled from the recorded source revision."
+      },
+      "protocol": "src/sfu_repro/rope/README.md"
     }
   ]
 }

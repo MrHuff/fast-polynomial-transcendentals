@@ -21,6 +21,7 @@ polynomial coefficients, keeping the activation fused into the expert matmul.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -28,12 +29,36 @@ import re
 import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
-from importlib.metadata import PackageNotFoundError, version as distribution_version
+from importlib.metadata import (
+    PackageNotFoundError,
+    distribution as distribution_metadata,
+    version as distribution_version,
+)
 from pathlib import Path
-from typing import Any, Callable, NamedTuple
+from typing import Any, Callable, NamedTuple, Sequence
+from urllib.parse import unquote, urlparse
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+if __package__:
+    from .lm_eval_task_pins import (
+        activate_harness_checkout,
+        enforce_dataset_revisions,
+        load_task_protocol,
+        require_all_datasets_observed,
+        require_harness_version,
+        require_sample_coverage,
+    )
+else:
+    from lm_eval_task_pins import (  # type: ignore[no-redef]
+        activate_harness_checkout,
+        enforce_dataset_revisions,
+        load_task_protocol,
+        require_all_datasets_observed,
+        require_harness_version,
+        require_sample_coverage,
+    )
 
 try:
     import triton
@@ -65,6 +90,11 @@ _SECRET_ASSIGNMENT_RE = re.compile(
     r"(?i)\b(api[_-]?key|access[_-]?token|auth(?:orization)?|password|secret)"
     r"\s*[:=]\s*[^\s,;]+"
 )
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_ENVIRONMENT_PROFILES = (
+    REPOSITORY_ROOT / "configs" / "eval_environments" / "profiles.json"
+)
+_NATIVE_BINARY_SUFFIXES = (".so", ".pyd", ".dll", ".dylib")
 
 
 @dataclass(frozen=True)
@@ -97,8 +127,10 @@ class Result:
     patched_gemma_softcap: bool = False
     prefill_ms: float | None = None
     prefill_tokens_per_s: float | None = None
+    prefill_repetition_ms: list[float] = field(default_factory=list)
     decode_ms_per_token: float | None = None
     decode_tokens_per_s: float | None = None
+    decode_repetition_ms: list[float] = field(default_factory=list)
     eval: dict[str, Any] | None = None
     error: str | None = None
     notes: list[str] = field(default_factory=list)
@@ -198,9 +230,15 @@ def parse_variant(raw: str) -> VariantSpec:
     gemma_fa4_tanh_source = "current"
     router_sigmoid_degree = None
     router_sigmoid_source = "current"
-    for part in raw.split("+"):
-        part = part.strip()
-        if not part or part == "native":
+    parts = tuple(part.strip() for part in raw.split("+"))
+    if not parts or any(not part for part in parts):
+        raise argparse.ArgumentTypeError(f"Invalid empty variant component in {raw!r}")
+    if "native" in parts and len(parts) != 1:
+        raise argparse.ArgumentTypeError(
+            "native cannot be combined with another variant"
+        )
+    for part in parts:
+        if part == "native":
             continue
         silu_match = SILU_RE.match(part)
         if silu_match:
@@ -261,6 +299,50 @@ def parse_variant(raw: str) -> VariantSpec:
     )
 
 
+def required_interventions(spec: VariantSpec) -> frozenset[str]:
+    """Return independently observable patch families requested by a variant."""
+
+    required: set[str] = set()
+    if any(
+        degree is not None
+        for degree in (
+            spec.silu_degree,
+            spec.gelu_degree,
+            spec.dense_swiglu_degree,
+        )
+    ):
+        required.add("activation")
+    if spec.router_sigmoid_degree is not None:
+        required.add("router")
+    if spec.gemma_tanh_source is not None or spec.gemma_fa4_tanh_backend is not None:
+        required.add("softcap")
+    return frozenset(required)
+
+
+def require_applied_interventions(spec: VariantSpec, result: Result) -> None:
+    """Reject a configured intervention that did not patch its intended scope."""
+
+    required = required_interventions(spec)
+    if spec.name == "native":
+        return
+    if not required:
+        raise RuntimeError(f"Variant {spec.name!r} does not request an intervention")
+
+    missing: list[str] = []
+    if "activation" in required and result.patched_silu_modules <= 0:
+        missing.append("activation/MLP")
+    if "router" in required and result.patched_router_sigmoid_modules <= 0:
+        missing.append("router sigmoid")
+    if "softcap" in required and not result.patched_gemma_softcap:
+        missing.append("attention softcap")
+    if missing:
+        raise RuntimeError(
+            f"Variant {spec.name!r} patched zero intended "
+            + ", ".join(missing)
+            + " modules"
+        )
+
+
 SOURCE_IDS = {
     "current": 0,
     "sollya": 1,
@@ -279,11 +361,7 @@ if triton is not None and tl is not None:
     def _poly_gated_swish_current_d4(gate, alpha):
         abs_gate = tl.abs(gate)
         t = tl.minimum(abs_gate * alpha, 5.25)
-        h = (
-            ((0.0005149841 * t - 0.0014419556) * t - 0.0402832031)
-            * t
-            + 0.2714843750
-        )
+        h = ((0.0005149841 * t - 0.0014419556) * t - 0.0402832031) * t + 0.2714843750
         h = t * h
         return 0.5 * gate + abs_gate * h
 
@@ -292,12 +370,8 @@ if triton is not None and tl is not None:
         abs_gate = tl.abs(gate)
         t = tl.minimum(abs_gate * alpha, 4.5)
         h = (
-            (((-0.0001697540 * t + 0.0026550293) * t - 0.0107421875)
-            * t
-            - 0.0240478516)
-            * t
-            + 0.2617187500
-        )
+            ((-0.0001697540 * t + 0.0026550293) * t - 0.0107421875) * t - 0.0240478516
+        ) * t + 0.2617187500
         h = t * h
         return 0.5 * gate + abs_gate * h
 
@@ -312,11 +386,7 @@ if triton is not None and tl is not None:
     def _poly_gated_swish_sollya_d4(gate, alpha):
         abs_gate = tl.abs(gate)
         t = tl.minimum(abs_gate * alpha, 5.28125)
-        h = (
-            ((0.0005722046 * t - 0.0020904541) * t - 0.0380859375)
-            * t
-            + 0.26953125
-        )
+        h = ((0.0005722046 * t - 0.0020904541) * t - 0.0380859375) * t + 0.26953125
         h = t * h
         return 0.5 * gate + abs_gate * h
 
@@ -325,20 +395,14 @@ if triton is not None and tl is not None:
         abs_gate = tl.abs(gate)
         t = tl.minimum(abs_gate * alpha, 5.40625)
         h = (
-            (((-0.0002956390 * t + 0.0042724609) * t - 0.0179443359)
-            * t
-            - 0.0115356445)
-            * t
-            + 0.255859375
-        )
+            ((-0.0002956390 * t + 0.0042724609) * t - 0.0179443359) * t - 0.0115356445
+        ) * t + 0.255859375
         h = t * h
         return 0.5 * gate + abs_gate * h
 
     @triton.jit
     def _gptoss_mxfp4_poly_swiglu_d3(input, alpha, limit):
-        gate, up = tl.split(
-            tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2))
-        )
+        gate, up = tl.split(tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2)))
         gate = gate.to(tl.float32)
         up = up.to(tl.float32)
         if limit is not None:
@@ -349,9 +413,7 @@ if triton is not None and tl is not None:
 
     @triton.jit
     def _gptoss_mxfp4_poly_swiglu_d4(input, alpha, limit):
-        gate, up = tl.split(
-            tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2))
-        )
+        gate, up = tl.split(tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2)))
         gate = gate.to(tl.float32)
         up = up.to(tl.float32)
         if limit is not None:
@@ -362,9 +424,7 @@ if triton is not None and tl is not None:
 
     @triton.jit
     def _gptoss_mxfp4_poly_swiglu_d5(input, alpha, limit):
-        gate, up = tl.split(
-            tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2))
-        )
+        gate, up = tl.split(tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2)))
         gate = gate.to(tl.float32)
         up = up.to(tl.float32)
         if limit is not None:
@@ -375,9 +435,7 @@ if triton is not None and tl is not None:
 
     @triton.jit
     def _gptoss_mxfp4_poly_swiglu_sollya_d3(input, alpha, limit):
-        gate, up = tl.split(
-            tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2))
-        )
+        gate, up = tl.split(tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2)))
         gate = gate.to(tl.float32)
         up = up.to(tl.float32)
         if limit is not None:
@@ -388,9 +446,7 @@ if triton is not None and tl is not None:
 
     @triton.jit
     def _gptoss_mxfp4_poly_swiglu_sollya_d4(input, alpha, limit):
-        gate, up = tl.split(
-            tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2))
-        )
+        gate, up = tl.split(tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2)))
         gate = gate.to(tl.float32)
         up = up.to(tl.float32)
         if limit is not None:
@@ -401,9 +457,7 @@ if triton is not None and tl is not None:
 
     @triton.jit
     def _gptoss_mxfp4_poly_swiglu_sollya_d5(input, alpha, limit):
-        gate, up = tl.split(
-            tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2))
-        )
+        gate, up = tl.split(tl.reshape(input, (input.shape[0], input.shape[1] // 2, 2)))
         gate = gate.to(tl.float32)
         up = up.to(tl.float32)
         if limit is not None:
@@ -464,7 +518,9 @@ def dense_swiglu_poly(
     coeff_source: str,
 ) -> torch.Tensor:
     if degree not in {3, 4, 5, 6}:
-        raise ValueError(f"Dense fused polynomial SwiGLU only supports D3/D4/D5/D6, got D{degree}")
+        raise ValueError(
+            f"Dense fused polynomial SwiGLU only supports D3/D4/D5/D6, got D{degree}"
+        )
     if gate.numel() == 0:
         return torch.empty_like(up)
     gate = gate.contiguous()
@@ -474,9 +530,7 @@ def dense_swiglu_poly(
             "Dense fused polynomial SwiGLU only supports fp16/bf16 odd/even kernels."
         )
     spline_ops = load_spline_ops_fast_swiglu()
-    return spline_ops.swish_mul_fwd_variant(
-        gate, up, degree, SOURCE_IDS[coeff_source]
-    )
+    return spline_ops.swish_mul_fwd_variant(gate, up, degree, SOURCE_IDS[coeff_source])
 
 
 def packed_swiglu_poly(
@@ -486,7 +540,9 @@ def packed_swiglu_poly(
     coeff_source: str,
 ) -> torch.Tensor:
     if degree not in {3, 4, 5, 6}:
-        raise ValueError(f"Packed fused polynomial SwiGLU only supports D3/D4/D5/D6, got D{degree}")
+        raise ValueError(
+            f"Packed fused polynomial SwiGLU only supports D3/D4/D5/D6, got D{degree}"
+        )
     if packed_gate_up.numel() == 0:
         return packed_gate_up[..., : packed_gate_up.shape[-1] // 2].contiguous()
     packed_gate_up = packed_gate_up.contiguous()
@@ -635,7 +691,9 @@ def collect_silu_act_fns(
         for attr in ("act_fn", "activation", "act"):
             fn = getattr(module, attr, None)
             if fn is not None and looks_like_silu_module(module, fn):
-                modules.append(ActivationSlot(name=name, module=module, attr=attr, fn=fn))
+                modules.append(
+                    ActivationSlot(name=name, module=module, attr=attr, fn=fn)
+                )
     return modules
 
 
@@ -647,14 +705,18 @@ def collect_gelu_act_fns(
         for attr in ("act_fn", "activation", "act"):
             fn = getattr(module, attr, None)
             if fn is not None and looks_like_gelu_module(module, fn):
-                modules.append(ActivationSlot(name=name, module=module, attr=attr, fn=fn))
+                modules.append(
+                    ActivationSlot(name=name, module=module, attr=attr, fn=fn)
+                )
     return modules
 
 
 def collect_dense_swiglu_fns(model: torch.nn.Module) -> list[DenseSwigluSlot]:
     modules: list[DenseSwigluSlot] = []
     for name, module in model.named_modules():
-        has_llama_names = all(hasattr(module, attr) for attr in ("gate_proj", "up_proj", "down_proj"))
+        has_llama_names = all(
+            hasattr(module, attr) for attr in ("gate_proj", "up_proj", "down_proj")
+        )
         has_phi_names = all(hasattr(module, attr) for attr in ("w1", "w2", "w3"))
         if not has_llama_names and not has_phi_names:
             continue
@@ -669,15 +731,22 @@ def collect_packed_moe_swiglu_fns(model: torch.nn.Module) -> list[PackedMoeSwigl
     for name, module in model.named_modules():
         if module.__class__.__name__ != "GraniteMoeMoE":
             continue
-        if not all(hasattr(module, attr) for attr in ("input_linear", "output_linear", "router")):
+        if not all(
+            hasattr(module, attr)
+            for attr in ("input_linear", "output_linear", "router")
+        ):
             continue
         fn = getattr(module, "activation", None)
         if fn is not None and looks_like_silu_module(module, fn):
-            modules.append(PackedMoeSwigluSlot(name=name, module=module, fn=module.forward))
+            modules.append(
+                PackedMoeSwigluSlot(name=name, module=module, fn=module.forward)
+            )
     return modules
 
 
-def collect_tensor_experts_swiglu_fns(model: torch.nn.Module) -> list[TensorExpertsSwigluSlot]:
+def collect_tensor_experts_swiglu_fns(
+    model: torch.nn.Module,
+) -> list[TensorExpertsSwigluSlot]:
     # HF tensorized MoE expert classes are usually decorated with a kernelized
     # experts implementation. Replacing their forward with a Python loop is much
     # slower, so do not patch this path without a lower-level fused kernel hook.
@@ -694,7 +763,9 @@ def collect_tensor_experts_swiglu_fns(model: torch.nn.Module) -> list[TensorExpe
             continue
         fn = getattr(module, "act_fn", None)
         if fn is not None and looks_like_silu_module(module, fn):
-            modules.append(TensorExpertsSwigluSlot(name=name, module=module, fn=module.forward))
+            modules.append(
+                TensorExpertsSwigluSlot(name=name, module=module, fn=module.forward)
+            )
     return modules
 
 
@@ -736,9 +807,10 @@ def capture_packed_moe_routes(
     from types import MethodType
 
     originals: list[tuple[torch.nn.Module, Callable[..., Any]]] = []
-    caches: dict[int, list[tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[int], torch.Tensor]]] = {
-        id(slot.module): [] for slot in slots
-    }
+    caches: dict[
+        int,
+        list[tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[int], torch.Tensor]],
+    ] = {id(slot.module): [] for slot in slots}
 
     for slot in slots:
         router = slot.module.router
@@ -753,7 +825,13 @@ def capture_packed_moe_routes(
             module: torch.nn.Module = slot.module,
         ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[int], torch.Tensor]:
             out = original(hidden_states)
-            index_sorted_experts, batch_index, batch_gates, expert_size, router_logits = out
+            (
+                index_sorted_experts,
+                batch_index,
+                batch_gates,
+                expert_size,
+                router_logits,
+            ) = out
             caches[id(module)].append(
                 (
                     index_sorted_experts.detach().clone(),
@@ -871,9 +949,7 @@ def _run_glm_sigmoid_router(
         .expand(-1, module.n_group, module.n_routed_experts // module.n_group)
         .reshape(-1, module.n_routed_experts)
     )
-    scores_for_choice = scores_for_choice.masked_fill(
-        ~score_mask.bool(), float("-inf")
-    )
+    scores_for_choice = scores_for_choice.masked_fill(~score_mask.bool(), float("-inf"))
     topk_indices = torch.topk(
         scores_for_choice,
         k=module.top_k,
@@ -882,9 +958,7 @@ def _run_glm_sigmoid_router(
     )[1]
     topk_weights = scores.gather(1, topk_indices)
     if module.norm_topk_prob:
-        topk_weights = topk_weights / (
-            topk_weights.sum(dim=-1, keepdim=True) + 1e-20
-        )
+        topk_weights = topk_weights / (topk_weights.sum(dim=-1, keepdim=True) + 1e-20)
     topk_weights = topk_weights * module.routed_scaling_factor
     return topk_indices, topk_weights
 
@@ -939,9 +1013,7 @@ def _run_kimi_sigmoid_router(
     )[1]
     topk_weights = scores.gather(1, topk_indices)
     if module.top_k > 1 and module.moe_renormalize:
-        topk_weights = topk_weights / (
-            topk_weights.sum(dim=-1, keepdim=True) + 1e-20
-        )
+        topk_weights = topk_weights / (topk_weights.sum(dim=-1, keepdim=True) + 1e-20)
     topk_weights = topk_weights * module.routed_scaling_factor
     return topk_indices, topk_weights
 
@@ -1078,9 +1150,7 @@ def apply_dense_swiglu_patch(
             gate = self.w1(x)
             up = self.w3(x)
             return self.w2(
-                dense_swiglu_poly(
-                    gate, up, degree=degree, coeff_source=coeff_source
-                )
+                dense_swiglu_poly(gate, up, degree=degree, coeff_source=coeff_source)
             )
 
         module.forward = MethodType(forward, module)
@@ -1117,11 +1187,15 @@ def apply_packed_moe_swiglu_patch(
         ) -> tuple[torch.Tensor, torch.Tensor]:
             bsz, length, emb_size = layer_input.size()
             layer_input = layer_input.reshape(-1, emb_size)
-            _, batch_index, batch_gates, expert_size, router_logits = self.router(layer_input)
+            _, batch_index, batch_gates, expert_size, router_logits = self.router(
+                layer_input
+            )
             if freeze_routing:
                 frozen_route = getattr(self, "_poly_frozen_route", None)
                 if frozen_route is None:
-                    raise RuntimeError("Granite MoE frozen routing was requested but no route cache exists.")
+                    raise RuntimeError(
+                        "Granite MoE frozen routing was requested but no route cache exists."
+                    )
                 _, batch_index, batch_gates, expert_size, _ = frozen_route
 
             expert_inputs = layer_input[batch_index]
@@ -1263,12 +1337,15 @@ def apply_gptoss_gate_patch(
             gate, up = gate_up[..., ::2], gate_up[..., 1::2]
             gate = gate.clamp(min=None, max=module.limit)
             up = up.clamp(min=-module.limit, max=module.limit)
-            return dense_swiglu_poly(
-                gate * module.alpha,
-                up + 1,
-                degree=spec.silu_degree,
-                coeff_source=spec.silu_source,
-            ) / module.alpha
+            return (
+                dense_swiglu_poly(
+                    gate * module.alpha,
+                    up + 1,
+                    degree=spec.silu_degree,
+                    coeff_source=spec.silu_source,
+                )
+                / module.alpha
+            )
 
         module._apply_gate = apply_gate
     return len(originals)
@@ -1284,11 +1361,11 @@ def apply_mxfp4_swiglu_patch(
         return 0
     if not originals:
         return 0
-    poly_fn = GPTOSS_MXFP4_POLY_SWIGLU_FNS.get(
-        (spec.silu_source, spec.silu_degree)
-    )
+    poly_fn = GPTOSS_MXFP4_POLY_SWIGLU_FNS.get((spec.silu_source, spec.silu_degree))
     if poly_fn is None:
-        raise RuntimeError("GPT-OSS MXFP4 fused patch requires Triton and supports D3/D4/D5.")
+        raise RuntimeError(
+            "GPT-OSS MXFP4 fused patch requires Triton and supports D3/D4/D5."
+        )
 
     import importlib
     from types import MethodType
@@ -1432,9 +1509,7 @@ def build_gemma_fa4_attention_forward(
     if backend not in {"native", "device"}:
         raise ValueError(f"Unsupported Gemma FA4 tanh backend: {backend!r}")
     if backend == "device" and spec.gemma_fa4_tanh_degree not in {3, 4, 5, 6}:
-        raise ValueError(
-            "Polynomial Gemma FA4 softcap requires degree D3/D4/D5/D6"
-        )
+        raise ValueError("Polynomial Gemma FA4 softcap requires degree D3/D4/D5/D6")
 
     runtime = load_gemma_fa4_runtime()
     flash_attn_fwd = runtime["_flash_attn_fwd"]
@@ -1454,9 +1529,13 @@ def build_gemma_fa4_attention_forward(
         if module.training or dropout:
             raise RuntimeError("Gemma FA4 evaluation patch only supports inference")
         if kwargs.get("output_attentions", False):
-            raise RuntimeError("Gemma FA4 evaluation patch does not materialize attention weights")
+            raise RuntimeError(
+                "Gemma FA4 evaluation patch does not materialize attention weights"
+            )
         if softcap is None or softcap <= 0:
-            raise RuntimeError(f"Gemma FA4 requires a positive softcap, got {softcap!r}")
+            raise RuntimeError(
+                f"Gemma FA4 requires a positive softcap, got {softcap!r}"
+            )
         if scaling is None:
             scaling = module.head_dim**-0.5
 
@@ -1636,20 +1715,24 @@ def benchmark_prefill(
     *,
     warmup: int,
     steps: int,
-) -> tuple[float, float]:
+) -> tuple[float, float, list[float]]:
     for _ in range(warmup):
         model(input_ids=tokens, use_cache=False)
     torch.cuda.synchronize()
 
-    start = torch.cuda.Event(enable_timing=True)
-    stop = torch.cuda.Event(enable_timing=True)
-    start.record()
+    event_pairs: list[tuple[torch.cuda.Event, torch.cuda.Event]] = []
     for _ in range(steps):
+        start = torch.cuda.Event(enable_timing=True)
+        stop = torch.cuda.Event(enable_timing=True)
+        start.record()
         model(input_ids=tokens, use_cache=False)
-    stop.record()
-    mean_ms = cuda_elapsed_ms(start, stop) / steps
+        stop.record()
+        event_pairs.append((start, stop))
+    torch.cuda.synchronize()
+    repetition_ms = [float(start.elapsed_time(stop)) for start, stop in event_pairs]
+    mean_ms = sum(repetition_ms) / len(repetition_ms)
     tokens_per_s = tokens.numel() * 1000.0 / mean_ms
-    return mean_ms, tokens_per_s
+    return mean_ms, tokens_per_s, repetition_ms
 
 
 @torch.inference_mode()
@@ -1661,7 +1744,7 @@ def benchmark_decode(
     repeats: int,
     decode_steps: int,
     seed: int,
-) -> tuple[float, float]:
+) -> tuple[float, float, list[float]]:
     batch_size, prompt_length = tokens.shape
     vocab_size = model_vocab_size(model)
     generator = torch.Generator(device=tokens.device).manual_seed(seed + 17)
@@ -1696,7 +1779,9 @@ def benchmark_decode(
                 if decode_cache is not None:
                     assert cache_positions is not None
                     position = prompt_length + decode_idx
-                    decode_kwargs["cache_position"] = cache_positions[position : position + 1]
+                    decode_kwargs["cache_position"] = cache_positions[
+                        position : position + 1
+                    ]
                 out = model(
                     input_ids=next_token,
                     past_key_values=past_key_values,
@@ -1715,7 +1800,9 @@ def benchmark_decode(
             if decode_cache is not None:
                 assert cache_positions is not None
                 position = prompt_length + decode_idx
-                decode_kwargs["cache_position"] = cache_positions[position : position + 1]
+                decode_kwargs["cache_position"] = cache_positions[
+                    position : position + 1
+                ]
             out = model(
                 input_ids=next_token,
                 past_key_values=past_key_values,
@@ -1729,12 +1816,12 @@ def benchmark_decode(
     for _ in range(warmup):
         run_loop(timed=False)
 
-    total_ms = 0.0
+    repetition_ms: list[float] = []
     for _ in range(repeats):
-        total_ms += run_loop(timed=True)
-    ms_per_token = total_ms / (repeats * decode_steps)
+        repetition_ms.append(run_loop(timed=True))
+    ms_per_token = sum(repetition_ms) / (len(repetition_ms) * decode_steps)
     tokens_per_s = batch_size * 1000.0 / ms_per_token
-    return ms_per_token, tokens_per_s
+    return ms_per_token, tokens_per_s, repetition_ms
 
 
 def run_lm_eval(
@@ -1744,12 +1831,20 @@ def run_lm_eval(
     tasks: list[str],
     num_fewshot: int,
     task_num_fewshot: dict[str, int],
-    limit: int | None,
+    limit: int | float | None,
     batch_size: str,
     device: str,
     log_samples: bool,
+    task_config: Path | None,
 ) -> dict[str, Any]:
+    task_protocol = load_task_protocol(task_config) if task_config is not None else None
+    harness_source = (
+        activate_harness_checkout(task_protocol, REPOSITORY_ROOT)
+        if task_protocol is not None
+        else None
+    )
     try:
+        import datasets
         from lm_eval import evaluator
         from lm_eval.models.huggingface import HFLM
     except ImportError as exc:
@@ -1757,6 +1852,21 @@ def run_lm_eval(
             "lm_eval is not installed. Install this artifact's evaluation "
             "dependencies or install lm-eval directly."
         ) from exc
+
+    installed_lm_eval = package_version("lm-eval")
+    if task_protocol is not None:
+        require_harness_version(task_protocol, installed_lm_eval)
+        task_protocol.select(tasks)
+        evaluator_seeds = task_protocol.evaluator_seeds
+    else:
+        # These are lm-eval 0.4.12's defaults. State them explicitly so a
+        # direct invocation records deterministic few-shot selection.
+        evaluator_seeds = {
+            "random_seed": 0,
+            "numpy_random_seed": 1234,
+            "torch_random_seed": 1234,
+            "fewshot_random_seed": 1234,
+        }
 
     lm = HFLM(
         pretrained=model,
@@ -1770,22 +1880,87 @@ def run_lm_eval(
         tasks_by_fewshot.setdefault(shots, []).append(task)
 
     evaluations: list[dict[str, Any]] = []
+    dataset_observations: dict[str, set[str | None]] = {}
     for shots, grouped_tasks in tasks_by_fewshot.items():
-        evaluation = evaluator.simple_evaluate(
-            model=lm,
-            tasks=grouped_tasks,
-            num_fewshot=shots,
-            limit=limit,
-            batch_size=batch_size,
-            log_samples=log_samples,
-        )
+        selected_pins = task_protocol.select(grouped_tasks) if task_protocol else ()
+        if selected_pins:
+            with enforce_dataset_revisions(
+                datasets, selected_pins
+            ) as grouped_observations:
+                evaluation = evaluator.simple_evaluate(
+                    model=lm,
+                    tasks=grouped_tasks,
+                    num_fewshot=shots,
+                    limit=limit,
+                    batch_size=batch_size,
+                    log_samples=log_samples,
+                    **evaluator_seeds,
+                )
+            require_all_datasets_observed(selected_pins, grouped_observations)
+            for dataset_path, names in grouped_observations.items():
+                dataset_observations.setdefault(dataset_path, set()).update(names)
+        else:
+            evaluation = evaluator.simple_evaluate(
+                model=lm,
+                tasks=grouped_tasks,
+                num_fewshot=shots,
+                limit=limit,
+                batch_size=batch_size,
+                log_samples=log_samples,
+                **evaluator_seeds,
+            )
         if evaluation is None:
             raise RuntimeError(f"lm-eval returned no results for tasks {grouped_tasks}")
+        task_results = evaluation.get("results")
+        if not isinstance(task_results, dict):
+            raise RuntimeError("lm-eval result did not contain a task result mapping")
+        missing_results = set(grouped_tasks) - set(task_results)
+        if missing_results:
+            raise RuntimeError(
+                "lm-eval did not return requested task result(s): "
+                + ", ".join(sorted(missing_results))
+            )
+        if log_samples:
+            require_sample_coverage(evaluation)
         evaluations.append(evaluation)
 
     merged = merge_lm_eval_results(evaluations)
     merged["task_num_fewshot"] = {
         task: task_num_fewshot.get(task, num_fewshot) for task in tasks
+    }
+    merged["public_task_protocol"] = {
+        "class": task_protocol.protocol_class if task_protocol else None,
+        "selection_date": task_protocol.selection_date if task_protocol else None,
+        "lm_eval_version": installed_lm_eval,
+        "lm_eval_source_revision": (
+            harness_source.revision if harness_source else None
+        ),
+        "lm_eval_source_path": (
+            harness_source.relative_path if harness_source else None
+        ),
+        "lm_eval_source_clean": harness_source.clean if harness_source else None,
+        "lm_eval_module_file": harness_source.module_file if harness_source else None,
+        "evaluator_seeds": evaluator_seeds,
+        "log_samples": log_samples,
+        "dataset_pins": (
+            {
+                pin.task: {
+                    "dataset_path": pin.dataset_path,
+                    "revision": pin.revision,
+                    "revision_provenance": pin.revision_provenance,
+                }
+                for pin in task_protocol.select(tasks)
+            }
+            if task_protocol
+            else None
+        ),
+        "observed_dataset_configs": {
+            path: sorted("null" if name is None else str(name) for name in names)
+            for path, names in sorted(dataset_observations.items())
+        },
+        "historical_boundary": (
+            task_protocol.historical_boundary if task_protocol else None
+        ),
     }
     return merged
 
@@ -1831,13 +2006,15 @@ def parse_task_num_fewshot(values: list[str]) -> dict[str, int]:
     return parsed
 
 
-def load_model_and_tokenizer(args: argparse.Namespace, model_id: str, dtype: torch.dtype):
+def load_model_and_tokenizer(
+    args: argparse.Namespace, model_id: str, dtype: torch.dtype
+):
     attn_implementation = args.attn_implementation
     variants = [parse_variant(raw) for raw in args.variant]
-    if any(
-        spec.gemma_tanh_source or spec.gemma_fa4_tanh_backend
-        for spec in variants
-    ) and attn_implementation != "eager":
+    if (
+        any(spec.gemma_tanh_source or spec.gemma_fa4_tanh_backend for spec in variants)
+        and attn_implementation != "eager"
+    ):
         print(
             "[info] Gemma tanh patch installs through the eager attention hook; "
             "loading with attn_implementation=eager",
@@ -2009,27 +2186,25 @@ def run_variant(
             f"{spec.gemma_fa4_tanh_source} score modifier."
         )
 
-    if result.patched_silu_modules == 0 and spec.silu_degree is not None:
-        result.notes.append("No supported SiLU/SwiGLU modules were found to patch.")
-    if result.patched_silu_modules == 0 and spec.gelu_degree is not None:
-        result.notes.append("No supported GeLU modules were found to patch.")
-    if result.patched_silu_modules == 0 and spec.dense_swiglu_degree is not None:
-        result.notes.append("No supported dense or packed MoE SwiGLU MLPs were found to patch.")
-    if (
-        result.patched_router_sigmoid_modules == 0
-        and spec.router_sigmoid_degree is not None
-    ):
-        result.notes.append("No supported GLM/Kimi sigmoid routers were found to patch.")
+    require_applied_interventions(spec, result)
 
     if args.mode in {"prefill", "both"}:
-        result.prefill_ms, result.prefill_tokens_per_s = benchmark_prefill(
+        (
+            result.prefill_ms,
+            result.prefill_tokens_per_s,
+            result.prefill_repetition_ms,
+        ) = benchmark_prefill(
             model,
             tokens,
             warmup=args.warmup,
             steps=args.steps,
         )
     if args.mode in {"decode", "both"}:
-        result.decode_ms_per_token, result.decode_tokens_per_s = benchmark_decode(
+        (
+            result.decode_ms_per_token,
+            result.decode_tokens_per_s,
+            result.decode_repetition_ms,
+        ) = benchmark_decode(
             model,
             tokens,
             warmup=args.decode_warmup,
@@ -2050,6 +2225,11 @@ def run_variant(
             batch_size=args.eval_batch_size,
             device=args.device,
             log_samples=args.eval_log_samples,
+            task_config=(
+                Path(args.eval_task_config).resolve()
+                if args.eval_task_config is not None
+                else None
+            ),
         )
     return result
 
@@ -2129,6 +2309,290 @@ def package_version(distribution: str) -> str | None:
         return None
 
 
+def git_revision(repository: Path) -> str | None:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    revision = completed.stdout.strip()
+    return revision if completed.returncode == 0 and len(revision) == 40 else None
+
+
+def _path_label(path: Path, repository_root: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(repository_root.resolve()).as_posix()
+    except ValueError:
+        return f"<external>/{resolved.name}"
+
+
+def safe_command(
+    arguments: Sequence[str], repository_root: Path = REPOSITORY_ROOT
+) -> list[str]:
+    """Preserve the complete argv while removing machine-specific path prefixes."""
+
+    rendered: list[str] = []
+    for raw in arguments:
+        token = str(raw)
+        option, separator, value = token.partition("=")
+        candidate = value if separator else token
+        path = Path(candidate)
+        if path.is_absolute():
+            safe_value = _path_label(path, repository_root)
+            rendered.append(f"{option}={safe_value}" if separator else safe_value)
+        else:
+            rendered.append(token)
+    return rendered
+
+
+def _sha256_file(path: Path) -> str | None:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        return None
+    return digest.hexdigest()
+
+
+def _config_receipt(path: Path | None) -> tuple[str | None, str | None]:
+    """Return a sanitized path label and content hash for a protocol input."""
+
+    if path is None:
+        return None, None
+    resolved = path.resolve()
+    return _path_label(resolved, REPOSITORY_ROOT), _sha256_file(resolved)
+
+
+def distribution_native_binary_hashes(
+    distribution: str,
+    *,
+    repository_root: Path = REPOSITORY_ROOT,
+    module_file: Path | None = None,
+) -> dict[str, str]:
+    """Hash installed native binaries without retaining environment prefixes."""
+
+    binaries: dict[str, str] = {}
+    try:
+        metadata = distribution_metadata(distribution)
+    except PackageNotFoundError:
+        metadata = None
+    for declared in getattr(metadata, "files", ()) or ():
+        declared_text = str(declared)
+        if not declared_text.lower().endswith(_NATIVE_BINARY_SUFFIXES):
+            continue
+        try:
+            resolved = Path(metadata.locate_file(declared)).resolve()
+        except (AttributeError, OSError, TypeError):
+            continue
+        digest = _sha256_file(resolved)
+        if digest is not None:
+            label_path = Path(declared_text)
+            label = (
+                label_path.as_posix()
+                if not label_path.is_absolute() and ".." not in label_path.parts
+                else f"<external>/{resolved.name}"
+            )
+            binaries[label] = digest
+    if module_file is not None and module_file.name.lower().endswith(
+        _NATIVE_BINARY_SUFFIXES
+    ):
+        digest = _sha256_file(module_file)
+        if digest is not None:
+            binaries.setdefault(_path_label(module_file, repository_root), digest)
+    return dict(sorted(binaries.items()))
+
+
+def distribution_direct_source(distribution: str) -> Path | None:
+    """Return a sanitized local PEP 610 source path, when one is recorded."""
+
+    try:
+        metadata = distribution_metadata(distribution)
+    except PackageNotFoundError:
+        return None
+    raw = metadata.read_text("direct_url.json")
+    if not raw:
+        return None
+    try:
+        document = json.loads(raw)
+        parsed = urlparse(str(document.get("url", "")))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
+        return None
+    return Path(unquote(parsed.path)).resolve()
+
+
+def load_local_build_specs(path: Path) -> dict[str, dict[str, Any]]:
+    document = json.loads(path.read_text(encoding="utf-8"))
+    raw_builds = document.get("local_builds")
+    if not isinstance(raw_builds, dict):
+        raise ValueError("environment profiles must define local_builds")
+    builds: dict[str, dict[str, Any]] = {}
+    for name, raw in raw_builds.items():
+        if not isinstance(name, str) or not isinstance(raw, dict):
+            raise ValueError("local_builds entries must be named objects")
+        required_strings = ("module", "distribution", "version", "path")
+        if any(
+            not isinstance(raw.get(key), str) or not raw[key]
+            for key in required_strings
+        ):
+            raise ValueError(f"local_builds.{name} lacks module provenance metadata")
+        source = Path(raw["path"])
+        if source.is_absolute() or ".." in source.parts:
+            raise ValueError(
+                f"local_builds.{name}.path must stay inside the repository"
+            )
+        revision_source = raw.get("revision_source")
+        revision = raw.get("revision")
+        if revision_source not in {None, "repository"}:
+            raise ValueError(f"local_builds.{name}.revision_source is invalid")
+        if revision_source is None and (
+            not isinstance(revision, str)
+            or re.fullmatch(r"[0-9a-f]{40}", revision) is None
+        ):
+            raise ValueError(f"local_builds.{name}.revision must be a full commit")
+        builds[name] = dict(raw)
+    return builds
+
+
+def required_local_modules(args: argparse.Namespace) -> frozenset[str]:
+    specs = [parse_variant(raw) for raw in (args.variant or ())]
+    required: set[str] = set()
+    if any(
+        spec.silu_degree is not None
+        or spec.gelu_degree is not None
+        or spec.dense_swiglu_degree is not None
+        or spec.router_sigmoid_degree is not None
+        or spec.gemma_tanh_source is not None
+        for spec in specs
+    ):
+        required.add("spline_ops")
+    if args.attn_implementation.startswith("flash_attention") or any(
+        spec.gemma_fa4_tanh_backend is not None for spec in specs
+    ):
+        required.add("flash_attn")
+    return frozenset(required)
+
+
+def module_origin_attestation(
+    name: str,
+    build: dict[str, Any],
+    *,
+    repository_revision: str | None,
+    repository_root: Path = REPOSITORY_ROOT,
+) -> dict[str, Any]:
+    """Bind a loaded module to its declared local checkout as far as metadata permits."""
+
+    module_name = str(build["module"])
+    distribution = str(build["distribution"])
+    expected_version = str(build["version"])
+    source_relative = Path(str(build["path"]))
+    source = (repository_root / source_relative).resolve()
+    module = sys.modules.get(module_name)
+    raw_module_file = getattr(module, "__file__", None) if module is not None else None
+    module_file = (
+        Path(raw_module_file).resolve()
+        if isinstance(raw_module_file, str) and raw_module_file
+        else None
+    )
+    direct_source = distribution_direct_source(distribution)
+    module_within_source = module_file is not None and module_file.is_relative_to(
+        source
+    )
+    direct_url_matches_source = direct_source == source
+    origin_matches_source = module_within_source or direct_url_matches_source
+
+    source_revision = git_revision(source) if source.exists() else None
+    source_dirty, source_untracked = (
+        git_worktree_state(source) if source.exists() else (None, None)
+    )
+    expected_revision = (
+        repository_revision
+        if build.get("revision_source") == "repository"
+        else build.get("revision")
+    )
+    observed_version = package_version(distribution)
+    module_sha256 = _sha256_file(module_file) if module_file is not None else None
+    native_binaries = distribution_native_binary_hashes(
+        distribution,
+        repository_root=repository_root,
+        module_file=module_file,
+    )
+    native_binary_required = bool(build.get("require_native_binary", False))
+    binding_method = None
+    if module_within_source:
+        binding_method = "module-within-source"
+    elif direct_url_matches_source:
+        binding_method = "pep610-direct-url"
+    bound = bool(
+        module is not None
+        and module_file is not None
+        and module_sha256 is not None
+        and observed_version == expected_version
+        and origin_matches_source
+        and source_revision == expected_revision
+        and source_dirty is False
+        and (not native_binary_required or bool(native_binaries))
+    )
+    return {
+        "name": name,
+        "module": module_name,
+        "module_loaded": module is not None,
+        "module_file": (
+            _path_label(module_file, repository_root)
+            if module_file is not None
+            else None
+        ),
+        "module_sha256": module_sha256,
+        "native_binary_required": native_binary_required,
+        "native_binary_sha256": native_binaries,
+        "distribution": distribution,
+        "package_version": observed_version,
+        "expected_package_version": expected_version,
+        "source_path": source_relative.as_posix(),
+        "direct_url_source": (
+            _path_label(direct_source, repository_root)
+            if direct_source is not None
+            else None
+        ),
+        "origin_matches_source": origin_matches_source,
+        "binding_method": binding_method,
+        "source_revision": source_revision,
+        "expected_source_revision": expected_revision,
+        "source_revision_matches": source_revision == expected_revision,
+        "source_dirty": source_dirty,
+        "source_untracked_files": source_untracked,
+        "bound": bound,
+    }
+
+
+def attest_required_module_origins(
+    args: argparse.Namespace,
+    *,
+    repository_revision: str | None,
+) -> dict[str, dict[str, Any]]:
+    profiles_path = Path(args.environment_profiles).resolve()
+    builds = load_local_build_specs(profiles_path)
+    attestations: dict[str, dict[str, Any]] = {}
+    for name in sorted(required_local_modules(args)):
+        if name not in builds:
+            raise ValueError(
+                f"environment profiles lack local build metadata for {name}"
+            )
+        attestations[name] = module_origin_attestation(
+            name,
+            builds[name],
+            repository_revision=repository_revision,
+        )
+    return attestations
+
+
 def repository_state(
     repository: Path | None = None,
 ) -> dict[str, Any]:
@@ -2147,11 +2611,35 @@ def repository_state(
 
     revision = git("rev-parse", "HEAD")
     dirty, untracked_files = git_worktree_state(repository)
+    external_components: dict[str, str | None] = {}
+    external_component_dirty: dict[str, bool | None] = {}
+    for name in ("flash-attention", "lm-evaluation-harness", "torchtitan"):
+        checkout = repository / name
+        if not (checkout / ".git").exists():
+            external_components[name] = None
+            external_component_dirty[name] = None
+            continue
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=checkout,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        observed = completed.stdout.strip()
+        external_components[name] = (
+            observed if completed.returncode == 0 and len(observed) == 40 else None
+        )
+        component_dirty, _ = git_worktree_state(checkout)
+        external_component_dirty[name] = component_dirty
     return {
         "repository": "https://github.com/MrHuff/fast-polynomial-transcendentals",
         "revision": revision if revision and len(revision) == 40 else None,
         "dirty": dirty,
         "untracked_files": untracked_files,
+        "external_components": external_components,
+        "external_component_dirty": external_component_dirty,
         "legacy_source": {
             "repository": "graphcore-research/low-bits-training",
             "revision": "393b69e2993ef00c812dfc87ac5f93c146159f45",
@@ -2160,17 +2648,45 @@ def repository_state(
 
 
 def result_document(results: list[Result], args: argparse.Namespace) -> dict[str, Any]:
+    source = repository_state()
+    suite_config, suite_config_sha256 = _config_receipt(
+        getattr(args, "suite_config", None)
+    )
+    environment_profiles, environment_profiles_sha256 = _config_receipt(
+        Path(args.environment_profiles)
+    )
+    eval_task_config, eval_task_config_sha256 = _config_receipt(
+        Path(args.eval_task_config) if args.eval_task_config is not None else None
+    )
     device: dict[str, Any] = {
         "python": platform.python_version(),
         "torch": torch.__version__,
         "cuda": torch.version.cuda,
         "packages": {
             "sfu-repro": package_version("sfu-repro"),
+            "sfu-spline-ops": package_version("sfu-spline-ops"),
+            "flash-attn": package_version("flash-attn"),
+            "fa4": package_version("fa4"),
             "transformers": package_version("transformers"),
             "lm-eval": package_version("lm-eval"),
+            "datasets": package_version("datasets"),
+            "evaluate": package_version("evaluate"),
             "accelerate": package_version("accelerate"),
             "safetensors": package_version("safetensors"),
+            "sentencepiece": package_version("sentencepiece"),
+            "protobuf": package_version("protobuf"),
+            "triton": package_version("triton"),
+            "kernels": package_version("kernels"),
+            "torchao": package_version("torchao"),
+            "einops": package_version("einops"),
+            "fla-core": package_version("fla-core"),
+            "flash-linear-attention": package_version("flash-linear-attention"),
+            "tiktoken": package_version("tiktoken"),
         },
+        "module_origins": attest_required_module_origins(
+            args,
+            repository_revision=source["revision"],
+        ),
     }
     if args.device.startswith("cuda") and torch.cuda.is_available():
         index = torch.device(args.device).index
@@ -2179,7 +2695,9 @@ def result_document(results: list[Result], args: argparse.Namespace) -> dict[str
         device.update(
             {
                 "name": properties.name,
-                "compute_capability": list(torch.cuda.get_device_capability(resolved_index)),
+                "compute_capability": list(
+                    torch.cuda.get_device_capability(resolved_index)
+                ),
                 "total_memory_bytes": properties.total_memory,
             }
         )
@@ -2188,16 +2706,22 @@ def result_document(results: list[Result], args: argparse.Namespace) -> dict[str
         "experiment": {
             "id": "open-weight-evaluation",
             "provenance_class": "new-measurement",
+            "command": safe_command(
+                getattr(
+                    args,
+                    "_recorded_command",
+                    [Path(sys.executable).name, *sys.argv],
+                )
+            ),
             "models": list(args.model),
             "variants": list(args.variant),
-            "requested_model_revisions": {
-                model: args.revision for model in args.model
-            },
+            "requested_model_revisions": {model: args.revision for model in args.model},
             "requested_tokenizer_revisions": {
                 model: args.revision for model in args.model
             },
+            "revision_provenance": args.revision_provenance,
         },
-        "source": repository_state(),
+        "source": source,
         "environment": device,
         "measurement": {
             "mode": args.mode,
@@ -2212,6 +2736,23 @@ def result_document(results: list[Result], args: argparse.Namespace) -> dict[str
             "decode_warmups": args.decode_warmup,
             "seed": args.seed,
             "eval_tasks": args.eval_tasks,
+            "eval_num_fewshot": args.eval_num_fewshot,
+            "eval_task_fewshot": list(args.eval_task_fewshot),
+            "eval_limit": args.eval_limit,
+            "eval_batch_size": args.eval_batch_size,
+            "eval_task_config": eval_task_config,
+            "eval_task_config_sha256": eval_task_config_sha256,
+            "eval_log_samples": args.eval_log_samples,
+            "attention_implementation": args.attn_implementation,
+            "experts_implementation": args.experts_implementation,
+            "trust_remote_code": args.trust_remote_code,
+            "mxfp4_dequantize": args.mxfp4_dequantize,
+            "freeze_granite_moe_routing": args.freeze_granite_moe_routing,
+            "suite_environment_preflight": args.suite_environment_preflight,
+            "suite_config": suite_config,
+            "suite_config_sha256": suite_config_sha256,
+            "environment_profiles": environment_profiles,
+            "environment_profiles_sha256": environment_profiles_sha256,
         },
         "results": [asdict(result) for result in results],
     }
@@ -2315,7 +2856,33 @@ def get_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--cache-dir", default=None)
+    parser.add_argument(
+        "--environment-profiles",
+        type=Path,
+        default=DEFAULT_ENVIRONMENT_PROFILES,
+        help="Local-build provenance declarations used in the result attestation.",
+    )
+    parser.add_argument(
+        "--suite-config",
+        type=Path,
+        default=None,
+        help=(
+            "Open-weight suite configuration used by the parent launcher. Its "
+            "sanitized path and SHA-256 are recorded in the result."
+        ),
+    )
     parser.add_argument("--revision", default=None)
+    parser.add_argument(
+        "--revision-provenance",
+        choices=[
+            "historical-source-derived",
+            "public-protocol-selection",
+            "user-specified",
+            "unrecorded",
+        ],
+        default="user-specified",
+        help="Provenance class for --revision in the emitted result metadata.",
+    )
     parser.add_argument(
         "--eval-tasks",
         default="",
@@ -2332,23 +2899,42 @@ def get_parser() -> argparse.ArgumentParser:
             "paper protocols."
         ),
     )
-    parser.add_argument("--eval-limit", type=int, default=None)
+    parser.add_argument("--eval-limit", type=float, default=None)
     parser.add_argument("--eval-batch-size", default="auto")
+    parser.add_argument(
+        "--eval-task-config",
+        default=None,
+        help="JSON config that pins lm-eval, datasets, and evaluator seeds.",
+    )
     parser.add_argument("--eval-log-samples", action="store_true")
+    parser.add_argument(
+        "--suite-environment-preflight",
+        choices=("passed", "planned", "skipped", "not-run"),
+        default="not-run",
+        help=(
+            "Record whether run_open_weight_suite completed its environment "
+            "preflight. Direct invocations retain the default 'not-run'."
+        ),
+    )
     parser.add_argument("--json-out", default=None)
     return parser
 
 
 def main() -> int:
     args = get_parser().parse_args()
+    args._recorded_command = [Path(sys.executable).name, *sys.argv]
     if args.mode == "eval" and not args.eval_tasks:
         raise ValueError("--mode eval requires --eval-tasks")
+    if args.eval_limit is not None and args.eval_limit <= 0:
+        raise ValueError("--eval-limit must be positive")
     if not args.model:
         args.model = ["Qwen/Qwen2.5-1.5B"]
     if args.variant is None:
         args.variant = ["native", "spline_silu_d3_current"]
     if args.device.startswith("cuda") and not torch.cuda.is_available():
-        raise RuntimeError("CUDA device requested, but torch.cuda.is_available() is false")
+        raise RuntimeError(
+            "CUDA device requested, but torch.cuda.is_available() is false"
+        )
 
     dtype = resolve_dtype(args.dtype)
     device = torch.device(args.device)

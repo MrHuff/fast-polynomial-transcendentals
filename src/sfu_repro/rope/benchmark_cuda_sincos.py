@@ -13,10 +13,12 @@ from pathlib import Path
 import torch
 
 from .benchmark_polynomial_sincos import (
+    attest_rope_sources,
     benchmark,
     load_spline_ops,
     make_rope_angles,
     numerical_metrics,
+    rope_result_metadata,
 )
 
 
@@ -36,12 +38,16 @@ def make_rope_angle_vector(
 ) -> torch.Tensor:
     values_per_position = head_dim // 2
     sequence_length = (element_count + values_per_position - 1) // values_per_position
-    return make_rope_angles(
-        head_dim=head_dim,
-        max_seq_len=sequence_length,
-        theta=theta,
-        device=device,
-    ).reshape(-1)[:element_count].contiguous()
+    return (
+        make_rope_angles(
+            head_dim=head_dim,
+            max_seq_len=sequence_length,
+            theta=theta,
+            device=device,
+        )
+        .reshape(-1)[:element_count]
+        .contiguous()
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -70,6 +76,11 @@ def parse_args() -> argparse.Namespace:
         help="Evaluations per loaded value in the compute-saturated control.",
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--allow-unbound-source",
+        action="store_true",
+        help="Permit a diagnostic result from dirty or non-local source.",
+    )
     return parser.parse_args()
 
 
@@ -83,6 +94,10 @@ def main() -> None:
         raise ValueError("compute element count and iterations must be positive")
 
     spline_ops = load_spline_ops()
+    repository_state, attestations, source_bound = attest_rope_sources(
+        spline_ops=spline_ops,
+        allow_unbound_source=args.allow_unbound_source,
+    )
     required_apis = (
         "sincos_native_bf16",
         "sincos_d3_d4_bf16",
@@ -243,8 +258,8 @@ def main() -> None:
             )
         native_bf16_time = float(bf16_size_results[0]["microseconds"])
         for row in bf16_size_results:
-            row["speedup_vs_native_sfu_bf16"] = (
-                native_bf16_time / float(row["microseconds"])
+            row["speedup_vs_native_sfu_bf16"] = native_bf16_time / float(
+                row["microseconds"]
             )
         fp16_size_results: list[dict[str, object]] = []
         for name, function in fp16_implementations:
@@ -267,8 +282,8 @@ def main() -> None:
             )
         native_fp16_time = float(fp16_size_results[0]["microseconds"])
         for row in fp16_size_results:
-            row["speedup_vs_native_sfu_fp16"] = (
-                native_fp16_time / float(row["microseconds"])
+            row["speedup_vs_native_sfu_fp16"] = native_fp16_time / float(
+                row["microseconds"]
             )
         results.append(
             {
@@ -315,9 +330,7 @@ def main() -> None:
     compute_results: list[dict[str, object]] = []
     for name, function in compute_implementations:
         timing, _ = benchmark(
-            lambda values, function=function: function(
-                values, args.compute_iterations
-            ),
+            lambda values, function=function: function(values, args.compute_iterations),
             compute_angles,
             warmup=args.warmup,
             repeats=args.repeats,
@@ -335,9 +348,7 @@ def main() -> None:
         )
     compute_native_time = float(compute_results[0]["microseconds"])
     for row in compute_results:
-        row["speedup_vs_native_sfu"] = (
-            compute_native_time / float(row["microseconds"])
-        )
+        row["speedup_vs_native_sfu"] = compute_native_time / float(row["microseconds"])
     compute_bf16_implementations = (
         ("native_sfu_bf16", spline_ops.sincos_native_bf16_compute),
         ("poly_d3_d4_bf16", spline_ops.sincos_d3_d4_bf16_compute),
@@ -361,9 +372,7 @@ def main() -> None:
     compute_bf16_results: list[dict[str, object]] = []
     for name, function in compute_bf16_implementations:
         timing, _ = benchmark(
-            lambda values, function=function: function(
-                values, args.compute_iterations
-            ),
+            lambda values, function=function: function(values, args.compute_iterations),
             compute_angles,
             warmup=args.warmup,
             repeats=args.repeats,
@@ -381,8 +390,8 @@ def main() -> None:
         )
     compute_native_bf16_time = float(compute_bf16_results[0]["microseconds"])
     for row in compute_bf16_results:
-        row["speedup_vs_native_sfu_bf16"] = (
-            compute_native_bf16_time / float(row["microseconds"])
+        row["speedup_vs_native_sfu_bf16"] = compute_native_bf16_time / float(
+            row["microseconds"]
         )
     compute_fp16_implementations = (
         ("native_sfu_fp16", spline_ops.sincos_native_fp16_compute),
@@ -410,9 +419,7 @@ def main() -> None:
     compute_fp16_results: list[dict[str, object]] = []
     for name, function in compute_fp16_implementations:
         timing, _ = benchmark(
-            lambda values, function=function: function(
-                values, args.compute_iterations
-            ),
+            lambda values, function=function: function(values, args.compute_iterations),
             compute_angles,
             warmup=args.warmup,
             repeats=args.repeats,
@@ -430,12 +437,18 @@ def main() -> None:
         )
     compute_native_fp16_time = float(compute_fp16_results[0]["microseconds"])
     for row in compute_fp16_results:
-        row["speedup_vs_native_sfu_fp16"] = (
-            compute_native_fp16_time / float(row["microseconds"])
+        row["speedup_vs_native_sfu_fp16"] = compute_native_fp16_time / float(
+            row["microseconds"]
         )
 
     payload = {
-        "configuration": {
+        **rope_result_metadata(
+            "rope-cache-hbm-and-repeated-evaluation",
+            repository_state=repository_state,
+            attestations=attestations,
+            source_bound=source_bound,
+        ),
+        "measurement": {
             "device_name": torch.cuda.get_device_name(device),
             "head_dim": args.head_dim,
             "theta": args.theta,
@@ -444,6 +457,20 @@ def main() -> None:
             "trials": args.trials,
             "compute_element_count": args.compute_element_count,
             "compute_iterations": args.compute_iterations,
+            "summary_statistic": "median of per-trial means",
+            "size_sweep_order": list(args.element_counts),
+            "implementation_order": [name for name, _ in implementations],
+            "bf16_implementation_order": [name for name, _ in bf16_implementations],
+            "fp16_implementation_order": [name for name, _ in fp16_implementations],
+            "compute_implementation_order": [
+                name for name, _ in compute_implementations
+            ],
+            "compute_bf16_implementation_order": [
+                name for name, _ in compute_bf16_implementations
+            ],
+            "compute_fp16_implementation_order": [
+                name for name, _ in compute_fp16_implementations
+            ],
         },
         "results": results,
         "compute_saturated": compute_results,
@@ -479,10 +506,7 @@ def main() -> None:
         f"\nCompute-saturated control: {args.compute_element_count:,} values x "
         f"{args.compute_iterations} evaluations"
     )
-    print(
-        f"{'implementation':>26} {'us':>10} {'speedup':>10} "
-        f"{'Gpair/s':>12}"
-    )
+    print(f"{'implementation':>26} {'us':>10} {'speedup':>10} " f"{'Gpair/s':>12}")
     for row in compute_results:
         print(
             f"{row['implementation']:>26} {row['microseconds']:10.3f} "
@@ -490,10 +514,7 @@ def main() -> None:
             f"{row['billion_pairs_per_second']:12.3f}"
         )
     print("\nCompute-saturated BF16-output control")
-    print(
-        f"{'implementation':>26} {'us':>10} {'speedup':>10} "
-        f"{'Gpair/s':>12}"
-    )
+    print(f"{'implementation':>26} {'us':>10} {'speedup':>10} " f"{'Gpair/s':>12}")
     for row in compute_bf16_results:
         print(
             f"{row['implementation']:>26} {row['microseconds']:10.3f} "
@@ -501,10 +522,7 @@ def main() -> None:
             f"{row['billion_pairs_per_second']:12.3f}"
         )
     print("\nCompute-saturated FP16-output control")
-    print(
-        f"{'implementation':>26} {'us':>10} {'speedup':>10} "
-        f"{'Gpair/s':>12}"
-    )
+    print(f"{'implementation':>26} {'us':>10} {'speedup':>10} " f"{'Gpair/s':>12}")
     for row in compute_fp16_results:
         print(
             f"{row['implementation']:>26} {row['microseconds']:10.3f} "

@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "evidence_class": "historical_source_derived",
+  "runtime_config_attested": false,
+  "source": {
+    "legacy_revision": "393b69e2993ef00c812dfc87ac5f93c146159f45",
+    "legacy_path": "scripts/nvl72/run_hf_poly_eval_job.sh",
+    "note": "The pins reproduce the packages explicitly installed by the retained historical launcher. W&B-only observability plumbing is omitted from this standalone evaluator."
+  },
+  "profiles": {
+    "hf_4_48_qwen2p5": {
+      "cases": [
+        "qwen2p5_7b"
+      ],
+      "requirements": "configs/eval_environments/hf_4_48_qwen2p5.requirements.txt",
+      "required_modules": [
+        "spline_ops"
+      ]
+    },
+    "hf_5_9_moe": {
+      "cases": [
+        "qwen3_30b_a3b_base",
+        "glm4p7_flash",
+        "gpt_oss_120b"
+      ],
+      "requirements": "configs/eval_environments/hf_5_9_moe.requirements.txt",
+      "required_modules": [
+        "spline_ops"
+      ],
+      "case_required_modules": {
+        "gpt_oss_120b": [
+          "triton"
+        ]
+      }
+    },
+    "hf_4_57_kimi": {
+      "cases": [
+        "kimi_linear_48b_a3b_base"
+      ],
+      "requirements": "configs/eval_environments/hf_4_57_kimi.requirements.txt",
+      "required_modules": [
+        "spline_ops",
+        "flash_attn"
+      ]
+    }
+  },
+  "local_builds": {
+    "spline_ops": {
+      "module": "spline_ops",
+      "distribution": "sfu-spline-ops",
+      "version": "0.1.0",
+      "path": "autonumerics_zero/spline_ops",
+      "revision_source": "repository",
+      "require_native_binary": true,
+      "install": "python -m pip install -v --no-build-isolation ./autonumerics_zero/spline_ops"
+    },
+    "flash_attn": {
+      "module": "flash_attn",
+      "distribution": "flash-attn",
+      "version": "2.8.3",
+      "path": "flash-attention",
+      "revision": "38afdedda24b0bf26e6904d3bed7807c19a6906e",
+      "require_native_binary": true,
+      "used_by": [
+        "kimi_linear_48b_a3b_base"
+      ],
+      "install": "FLASH_ATTENTION_FORCE_BUILD=TRUE python -m pip install -v --no-build-isolation ./flash-attention"
+    }
+  },
+  "historical_boundaries": {
+    "base_runtime": "The final open-weight result artifact did not retain an independently attested Python, PyTorch, Triton, CUDA toolkit, driver, or container digest. These requirements therefore do not assert those versions.",
+    "evaluation_data": "The historical artifact did not retain immutable revisions for the lm-eval task datasets or the identities of sampled few-shot examples. configs/lm_eval_paper_tasks.json pins new public-protocol dataset revisions and the lm-eval default seeds; these are not attributed to the historical campaign.",
+    "raw_outputs": "The original per-example lm-eval outputs were not retained in the public artifact. Public quality reruns enable sample logging and preserve documents, prompt hashes, responses, and per-sample metrics in their result JSON.",
+    "historically_unrecorded_model_revisions": [
+      "qwen2p5_7b",
+      "qwen3_30b_a3b_base"
+    ],
+    "revision_policy": "The default public protocol pins newly selected immutable revisions for both historically unrecorded Qwen cases. Their outputs must not be described as the exact historical checkpoints."
+  }
+}

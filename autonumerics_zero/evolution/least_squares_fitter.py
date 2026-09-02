@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 """
 Least Squares Polynomial Fitter - Alternative to Lagrange interpolation
 
@@ -12,15 +16,19 @@ import numpy as np
 from scipy.optimize import minimize
 import struct
 
+
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
+
 
 def sigmoid_grad(x):
     s = sigmoid(x)
     return s * (1 - s)
 
+
 def tanh_grad(x):
-    return 1 - np.tanh(x)**2
+    return 1 - np.tanh(x) ** 2
+
 
 def swish_grad(x):
     s = sigmoid(x)
@@ -55,7 +63,7 @@ class LeastSquaresPolynomialFitter:
 
         # Sample points - use Chebyshev distribution to reduce edge effects
         k = np.arange(self.num_samples)
-        cheb_points = np.cos((2*k + 1) * np.pi / (2 * self.num_samples))
+        cheb_points = np.cos((2 * k + 1) * np.pi / (2 * self.num_samples))
         x = 0.5 * (t_min + t_max) + 0.5 * (t_max - t_min) * cheb_points
         x = np.sort(x)
 
@@ -90,7 +98,7 @@ class LeastSquaresPolynomialFitter:
         hex_codes = []
         for c in self.coeffs:
             fp16 = np.float16(c)
-            h = struct.pack('<e', fp16).hex()
+            h = struct.pack("<e", fp16).hex()
             hex_codes.append(f"0x{h[2:4]}{h[0:2]}".upper())
         return hex_codes
 
@@ -102,9 +110,9 @@ class LeastSquaresPolynomialFitter:
 
         error = np.abs(y_true - y_pred)
         return {
-            'max_error': np.max(error),
-            'mean_error': np.mean(error),
-            'rms_error': np.sqrt(np.mean(error**2)),
+            "max_error": np.max(error),
+            "mean_error": np.mean(error),
+            "rms_error": np.sqrt(np.mean(error**2)),
         }
 
 
@@ -117,13 +125,13 @@ def compare_methods():
         ("Swish gradient", swish_grad, (0, 7.5), 5, None),  # asymptotes to 1, not 0
     ]
 
-    print("="*80)
+    print("=" * 80)
     print("LEAST SQUARES POLYNOMIAL FITS")
-    print("="*80)
+    print("=" * 80)
 
     for name, func, domain, degree, endpoint in configs:
         print(f"\n{name} on [{domain[0]}, {domain[1]}], degree {degree}")
-        print("-"*60)
+        print("-" * 60)
 
         # 1. Standard least squares
         fitter_ls = LeastSquaresPolynomialFitter(func, domain, degree)
@@ -145,7 +153,9 @@ def compare_methods():
             normalized = (x - center) / halfwidth  # [-1, 1]
             return 1.0 - 0.5 * normalized**2  # Lower weight at edges
 
-        fitter_weighted = LeastSquaresPolynomialFitter(func, domain, degree, weights=edge_weights)
+        fitter_weighted = LeastSquaresPolynomialFitter(
+            func, domain, degree, weights=edge_weights
+        )
         fitter_weighted.fit()
         stats_weighted = fitter_weighted.analyze()
 
@@ -168,7 +178,7 @@ def compare_methods():
         print(f"    True value: {true_val:.6f}")
         print(f"    Error: {abs(poly_val - true_val):.6f}")
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Analysis complete!")
 
 

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 # --- CUDA Benchmark Makefile ---
 
 # Compiler

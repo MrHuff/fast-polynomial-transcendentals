@@ -1,0 +1,14 @@
+include MANIFEST.in
+include LICENSE
+include NOTICE
+include README.md
+include pyproject.toml
+include setup.py
+include spline_compile.py
+include spline_ops.cpp
+include spline_kernels.cu
+include spline_kernels_bf16.cu
+include sincos_kernels.cu
+include spline_structs_odd.cuh
+include spline_structs_odd_bf16.cuh
+include spline_structs_sollya_bf16.cuh

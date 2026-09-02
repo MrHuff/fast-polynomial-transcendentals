@@ -1,12 +1,26 @@
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 import numpy as np
 import inspect
+
 
 class PolynomialFitter:
     """
     Fits piecewise polynomials to a given function with optional C0 continuity constraints.
     """
-    def __init__(self, func, domain=(0.0, 1.0), degrees=None, num_intervals=1, continuity_c0=True,
-                 weight_func=None, sampling='uniform'):
+
+    def __init__(
+        self,
+        func,
+        domain=(0.0, 1.0),
+        degrees=None,
+        num_intervals=1,
+        continuity_c0=True,
+        weight_func=None,
+        sampling="uniform",
+    ):
         """
         Args:
             func: Callable python function to fit (e.g. np.exp, or lambda x: ...)
@@ -30,7 +44,7 @@ class PolynomialFitter:
             self.degrees = degrees
             assert len(self.degrees) == num_intervals
 
-        self.coeffs = [] # List of lists: [[c_deg, ..., c0], ...]
+        self.coeffs = []  # List of lists: [[c_deg, ..., c0], ...]
         self.knot_points = np.linspace(domain[0], domain[1], num_intervals + 1)
 
     def fit(self, num_samples_per_interval=10000):
@@ -50,7 +64,7 @@ class PolynomialFitter:
         def get_col_idx(interval_idx, coeff_degree_idx):
             offset = 0
             for i in range(interval_idx):
-                offset += (self.degrees[i] + 1)
+                offset += self.degrees[i] + 1
             # Coefficients are stored [c_deg, c_deg-1, ..., c0]
             # Vandermonde usually is [x^n, x^n-1... 1] or [1, x, ... x^n]
             # We will generate [x^deg, x^deg-1, ..., 1] to match C++ (Horner-ish usually prefers High->Low storage or Low->High?)
@@ -67,20 +81,20 @@ class PolynomialFitter:
 
         all_x = []
         all_y = []
-        all_w = [] # Weights
+        all_w = []  # Weights
 
         for i in range(self.num_intervals):
             t_min = self.knot_points[i]
-            t_max = self.knot_points[i+1]
+            t_max = self.knot_points[i + 1]
             deg = self.degrees[i]
 
             # Sample points
-            if self.sampling == 'chebyshev':
+            if self.sampling == "chebyshev":
                 # Chebyshev nodes on [t_min, t_max]
                 # x_k = 0.5 * (a + b) + 0.5 * (b - a) * cos((2k+1)/(2n) * pi)
                 # We need num_samples_per_interval nodes
                 k = np.arange(num_samples_per_interval)
-                nodes = np.cos((2*k + 1) * np.pi / (2 * num_samples_per_interval))
+                nodes = np.cos((2 * k + 1) * np.pi / (2 * num_samples_per_interval))
                 x_samples = 0.5 * (t_min + t_max) + 0.5 * (t_max - t_min) * nodes
                 # Sort for plotting/consistency
                 x_samples = np.sort(x_samples)
@@ -130,7 +144,9 @@ class PolynomialFitter:
             col_start = get_col_idx(i, 0)
             col_end = col_start + deg + 1
 
-            A_ls[row_offset : row_offset + num_samples_per_interval, col_start : col_end] = V_weighted
+            A_ls[
+                row_offset : row_offset + num_samples_per_interval, col_start:col_end
+            ] = V_weighted
             b_ls[row_offset : row_offset + num_samples_per_interval] = y_weighted
 
             row_offset += num_samples_per_interval
@@ -140,10 +156,10 @@ class PolynomialFitter:
         num_internal_knots = self.num_intervals - 1
         if self.continuity_c0 and num_internal_knots > 0:
             C_matrix = np.zeros((num_internal_knots, total_coeffs))
-            d_vector = np.zeros(num_internal_knots) # = 0
+            d_vector = np.zeros(num_internal_knots)  # = 0
 
             for k in range(num_internal_knots):
-                knot_x = self.knot_points[k+1]
+                knot_x = self.knot_points[k + 1]
 
                 # Left Polynomial (Interval k) at knot_x
                 left_idx = k
@@ -158,12 +174,12 @@ class PolynomialFitter:
                 # Left Coeffs (+1)
                 col_start_left = get_col_idx(left_idx, 0)
                 for p in range(left_deg + 1):
-                    C_matrix[k, col_start_left + p] = knot_x ** p
+                    C_matrix[k, col_start_left + p] = knot_x**p
 
                 # Right Coeffs (-1)
                 col_start_right = get_col_idx(right_idx, 0)
                 for p in range(right_deg + 1):
-                    C_matrix[k, col_start_right + p] = -(knot_x ** p)
+                    C_matrix[k, col_start_right + p] = -(knot_x**p)
 
             # Solve Constrained Least Squares
             # Minimize ||Ax - b||^2 s.t. Cx = d
@@ -178,7 +194,9 @@ class PolynomialFitter:
             ATb = A_ls.T @ b_ls
 
             KKT_top = np.hstack([ATA, C_matrix.T])
-            KKT_bot = np.hstack([C_matrix, np.zeros((num_internal_knots, num_internal_knots))])
+            KKT_bot = np.hstack(
+                [C_matrix, np.zeros((num_internal_knots, num_internal_knots))]
+            )
             KKT = np.vstack([KKT_top, KKT_bot])
 
             rhs = np.concatenate([ATb, d_vector])
@@ -218,7 +236,7 @@ class PolynomialFitter:
             for i in range(self.num_intervals):
                 # Check if this interval has this degree
                 if d <= self.degrees[i]:
-                    val = self.coeffs[i][d] # Stored as C0, C1... so index match degree
+                    val = self.coeffs[i][d]  # Stored as C0, C1... so index match degree
                 else:
                     val = 0.0
                 code += f"                case {i}: return {val:.8f}f;\n"
@@ -238,7 +256,7 @@ class PolynomialFitter:
         code += f"        for (int d = {max_deg}; d >= 0; --d) {{\n"
         code += f"            float c = get_coeff(interval_idx, d);\n"
         code += f"            // fma(a, b, c) = a*b + c\n"
-        code += f"            res = fmaf(x, res, c);\n" # x * res + c
+        code += f"            res = fmaf(x, res, c);\n"  # x * res + c
         code += "        }\n"
         code += "        return res;\n"
         code += "    }\n"
@@ -256,15 +274,19 @@ import os
 import json
 import struct
 
+
 def float_to_hex(f):
     """Converts a python float (FP32) to its IEEE 754 hex representation."""
-    return hex(struct.unpack('<I', struct.pack('<f', f))[0])
+    return hex(struct.unpack("<I", struct.pack("<f", f))[0])
+
 
 def quantize_to_fp16(val_f32):
     """Quantizes a float to FP16 and returns (float_val, hex_str)."""
     t = torch.tensor([val_f32], dtype=torch.float32)
     t_fp16 = t.to(torch.float16)
-    val_fp16 = t_fp16.item() # This is the float value as python sees it (promoted back to f32 usually but rounded)
+    val_fp16 = (
+        t_fp16.item()
+    )  # This is the float value as python sees it (promoted back to f32 usually but rounded)
 
     # Bit representation:
     # Cast to int16 (reinterpret)
@@ -272,6 +294,7 @@ def quantize_to_fp16(val_f32):
     # Actually simpler: t_fp16.view(torch.int16).item() works if t_fp16 is on CPU
     bits = t_fp16.view(torch.int16).item() & 0xFFFF
     return val_fp16, f"0x{bits:04X}"
+
 
 def quantize_to_bf16(val_f32):
     """Quantizes a float to BF16 and returns (float_val, hex_str)."""
@@ -283,6 +306,7 @@ def quantize_to_bf16(val_f32):
     bits = t_bf16.view(torch.int16).item() & 0xFFFF
     return val_bf16, f"0x{bits:04X}"
 
+
 def compute_ulp_error(true_y, pred_y):
     """Computes the error in Units in Last Place (ULP) for FP32."""
     # ULP(x) is machine epsilon * 2^exponent
@@ -293,6 +317,7 @@ def compute_ulp_error(true_y, pred_y):
     spacing[spacing == 0] = np.finfo(float).tiny
     ulps = np.abs(true_y - pred_y) / spacing
     return np.mean(ulps), np.max(ulps)
+
 
 class PolynomialAnalyzer:
     def __init__(self, fitter, func_name):
@@ -310,14 +335,11 @@ class PolynomialAnalyzer:
             "domain": self.fitter.domain,
             "intervals": self.fitter.num_intervals,
             "degrees": self.fitter.degrees,
-            "coeffs": {}
+            "coeffs": {},
         }
 
         # FP32
-        stats["coeffs"]["fp32"] = {
-            "values": [],
-            "hex": []
-        }
+        stats["coeffs"]["fp32"] = {"values": [], "hex": []}
         for interval_coeffs in self.coeffs:
             curr_vals = []
             curr_hex = []
@@ -329,7 +351,7 @@ class PolynomialAnalyzer:
 
         # FP16
         stats["coeffs"]["fp16"] = {"values": [], "hex": []}
-        coeffs_fp16 = [] # For evaluation
+        coeffs_fp16 = []  # For evaluation
         for interval_coeffs in self.coeffs:
             curr_vals = []
             curr_hex = []
@@ -364,11 +386,15 @@ class PolynomialAnalyzer:
         true_y = self.fitter.func(test_x)
 
         results = {}
-        for prec, c_list in [("fp32", self.coeffs), ("fp16", coeffs_fp16), ("bf16", coeffs_bf16)]:
+        for prec, c_list in [
+            ("fp32", self.coeffs),
+            ("fp16", coeffs_fp16),
+            ("bf16", coeffs_bf16),
+        ]:
             pred_y = self._evaluate_spline(test_x, c_list)
 
             # MSE
-            mse = np.mean((true_y - pred_y)**2)
+            mse = np.mean((true_y - pred_y) ** 2)
 
             # Rel Error (Handle small values)
             safe_true = np.where(np.abs(true_y) < 1e-7, 1e-7, true_y)
@@ -389,11 +415,13 @@ class PolynomialAnalyzer:
                 "max_rel_error": float(max_rel),
                 "avg_rel_error": float(avg_rel),
                 "mean_ulp": float(mean_ulp),
-                "max_ulp": float(max_ulp)
+                "max_ulp": float(max_ulp),
             }
 
             # Save for plotting
-            stats[f"pred_{prec}"] = pred_y.tolist() # Might be large, maybe don't save to JSON?
+            stats[f"pred_{prec}"] = (
+                pred_y.tolist()
+            )  # Might be large, maybe don't save to JSON?
             # Actually, let's keep JSON specificstats and save plot separately.
 
         stats["metrics"] = results
@@ -401,8 +429,8 @@ class PolynomialAnalyzer:
         # Save JSON
         json_path = os.path.join(save_dir, f"{self.func_name}_stats.json")
         # Remove large arrays before saving json
-        save_stats = {k:v for k,v in stats.items() if not k.startswith("pred_")}
-        with open(json_path, 'w') as f:
+        save_stats = {k: v for k, v in stats.items() if not k.startswith("pred_")}
+        with open(json_path, "w") as f:
             json.dump(save_stats, f, indent=2)
 
         print(f"Saved stats to {json_path}")
@@ -412,21 +440,56 @@ class PolynomialAnalyzer:
 
         # Top: Function
         plt.subplot(2, 1, 1)
-        plt.plot(test_x, true_y, 'k-', label='Ground Truth', linewidth=2, alpha=0.5)
-        plt.plot(test_x, self._evaluate_spline(test_x, self.coeffs), 'b--', label=f'FP32 Fit (MaxErr={results["fp32"]["max_abs_error"]:.2e})')
-        plt.plot(test_x, self._evaluate_spline(test_x, coeffs_fp16), 'r:', label=f'FP16 Coeffs (MaxErr={results["fp16"]["max_abs_error"]:.2e})')
-        plt.plot(test_x, self._evaluate_spline(test_x, coeffs_bf16), 'g:', label=f'BF16 Coeffs (MaxErr={results["bf16"]["max_abs_error"]:.2e})')
-        plt.title(f"Fit: {self.func_name} (N={self.fitter.num_intervals}, Deg={self.fitter.degrees[0]})")
+        plt.plot(test_x, true_y, "k-", label="Ground Truth", linewidth=2, alpha=0.5)
+        plt.plot(
+            test_x,
+            self._evaluate_spline(test_x, self.coeffs),
+            "b--",
+            label=f'FP32 Fit (MaxErr={results["fp32"]["max_abs_error"]:.2e})',
+        )
+        plt.plot(
+            test_x,
+            self._evaluate_spline(test_x, coeffs_fp16),
+            "r:",
+            label=f'FP16 Coeffs (MaxErr={results["fp16"]["max_abs_error"]:.2e})',
+        )
+        plt.plot(
+            test_x,
+            self._evaluate_spline(test_x, coeffs_bf16),
+            "g:",
+            label=f'BF16 Coeffs (MaxErr={results["bf16"]["max_abs_error"]:.2e})',
+        )
+        plt.title(
+            f"Fit: {self.func_name} (N={self.fitter.num_intervals}, Deg={self.fitter.degrees[0]})"
+        )
         plt.legend()
         plt.grid(True, alpha=0.3)
 
         # Bottom: Error (Log Scale)
         plt.subplot(2, 1, 2)
-        plt.semilogy(test_x, np.abs(true_y - self._evaluate_spline(test_x, self.coeffs)), 'b-', label='FP32 Error', alpha=0.7)
-        plt.semilogy(test_x, np.abs(true_y - self._evaluate_spline(test_x, coeffs_fp16)), 'r-', label='FP16 Error', alpha=0.7)
-        plt.semilogy(test_x, np.abs(true_y - self._evaluate_spline(test_x, coeffs_bf16)), 'g-', label='BF16 Error', alpha=0.7)
-        plt.ylabel('Absolute Error (Log)')
-        plt.xlabel('Input')
+        plt.semilogy(
+            test_x,
+            np.abs(true_y - self._evaluate_spline(test_x, self.coeffs)),
+            "b-",
+            label="FP32 Error",
+            alpha=0.7,
+        )
+        plt.semilogy(
+            test_x,
+            np.abs(true_y - self._evaluate_spline(test_x, coeffs_fp16)),
+            "r-",
+            label="FP16 Error",
+            alpha=0.7,
+        )
+        plt.semilogy(
+            test_x,
+            np.abs(true_y - self._evaluate_spline(test_x, coeffs_bf16)),
+            "g-",
+            label="BF16 Error",
+            alpha=0.7,
+        )
+        plt.ylabel("Absolute Error (Log)")
+        plt.xlabel("Input")
         plt.legend()
         plt.grid(True, alpha=0.3)
 
@@ -455,8 +518,9 @@ class PolynomialAnalyzer:
         # Evaluate
         # Group by interval to vectorize poly eval
         for i in range(num_intervals):
-            mask = (indices == i)
-            if not np.any(mask): continue
+            mask = indices == i
+            if not np.any(mask):
+                continue
 
             x_local = x_arr[mask]
             c_list = coeffs[i]
@@ -472,10 +536,13 @@ class PolynomialAnalyzer:
 
         return y_pred
 
+
 # Example Usage Test
 if __name__ == "__main__":
     # Fit exp(x) on [0, 1] with 2 intervals, degree 2
-    fitter = PolynomialFitter(np.exp, domain=(0.0, 1.0), degrees=2, num_intervals=2, continuity_c0=True)
+    fitter = PolynomialFitter(
+        np.exp, domain=(0.0, 1.0), degrees=2, num_intervals=2, continuity_c0=True
+    )
     fitter.fit()
 
     analyzer = PolynomialAnalyzer(fitter, "Exp_N2_D2")

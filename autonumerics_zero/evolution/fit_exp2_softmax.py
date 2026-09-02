@@ -6,8 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 
 import numpy as np
+
+try:
+    from .fit_provenance import bind_fit_payload, build_fit_provenance
+except ImportError:  # Direct script execution.
+    from fit_provenance import bind_fit_payload, build_fit_provenance
 
 
 def golden_section_minimize(fn, lo: float, hi: float, iterations: int = 100) -> float:
@@ -85,13 +91,19 @@ def fit_two_piece_linear(x: np.ndarray, target: np.ndarray) -> dict[str, object]
     return result
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", type=int, default=1_000_001)
     parser.add_argument("--json-out", type=Path)
-    args = parser.parse_args()
+    raw_arguments = list(sys.argv[1:] if argv is None else argv)
+    args = parser.parse_args(argv)
     if args.samples < 3:
         parser.error("--samples must be at least 3")
+    provenance = build_fit_provenance(
+        script=Path(__file__),
+        arguments=raw_arguments,
+        distributions=("numpy",),
+    )
 
     x = np.linspace(0.0, 1.0, args.samples, dtype=np.float64)
     target = np.exp2(x)
@@ -103,6 +115,7 @@ def main() -> None:
         "two_piece_linear": fit_two_piece_linear(x, target),
         "note": "Sampled minimax values are dense-grid estimates, not formal certificates.",
     }
+    bind_fit_payload(result, provenance)
     rendered = json.dumps(result, indent=2, sort_keys=True)
     print(rendered)
     if args.json_out is not None:

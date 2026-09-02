@@ -1,5 +1,9 @@
 // spline_structs_odd.cuh — D3-D6 ODD/EVEN activation structs
 // Generated from 2D (Li,Lc) sweep with FP16 Horner simulation.
+// Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+// Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 #pragma once
 #include <cuda_fp16.h>
 

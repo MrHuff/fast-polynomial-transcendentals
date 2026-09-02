@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 """
 Odd-Transform Refitting: Fit sigmoid(x)-0.5, swish'(x)-0.5, and swish forward
 using multiple methods and domain ranges to find optimal coefficients.
@@ -35,41 +39,50 @@ except ImportError:
 # Target Functions
 # =============================================================================
 
+
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
+
 
 def sigmoid_odd(x):
     """sigmoid(x) - 0.5: ODD function. sigmoid(x) = 0.5 + sigmoid_odd(x)."""
     return sigmoid(x) - 0.5
+
 
 def swish_grad(x):
     """swish'(x) = sigmoid(x) * (1 + x * (1 - sigmoid(x)))"""
     s = sigmoid(x)
     return s * (1 + x * (1 - s))
 
+
 def swish_grad_odd(x):
     """swish'(x) - 0.5: ODD function. swish'(x) = 0.5 + swish_grad_odd(x)."""
     return swish_grad(x) - 0.5
 
+
 def swish(x):
     return x * sigmoid(x)
 
+
 def tanh_func(x):
     return np.tanh(x)
+
 
 def sigmoid_grad(x):
     """sigmoid'(x) = sigmoid(x) * (1 - sigmoid(x)). EVEN function."""
     s = sigmoid(x)
     return s * (1 - s)
 
+
 def tanh_grad(x):
     """tanh'(x) = 1 - tanh(x)^2. EVEN function."""
-    return 1.0 - np.tanh(x)**2
+    return 1.0 - np.tanh(x) ** 2
 
 
 # =============================================================================
 # Fitting Helpers
 # =============================================================================
+
 
 def coeffs_to_fp16_hex(coeffs):
     """Convert coefficient list to FP16 hex strings."""
@@ -79,12 +92,14 @@ def coeffs_to_fp16_hex(coeffs):
         result.append(hex_str)
     return result
 
+
 def evaluate_polynomial(x, coeffs):
     """Evaluate polynomial: coeffs[0] + coeffs[1]*x + coeffs[2]*x^2 + ..."""
     result = np.zeros_like(x)
     for i, c in enumerate(coeffs):
         result += c * x**i
     return result
+
 
 def measure_fit_quality(func, domain, coeffs, n_samples=100000):
     """Measure fit quality metrics."""
@@ -96,19 +111,26 @@ def measure_fit_quality(func, domain, coeffs, n_samples=100000):
     return {
         "max_error": float(np.max(abs_err)),
         "mean_error": float(np.mean(abs_err)),
-        "mse": float(np.mean((y_true - y_pred)**2)),
+        "mse": float(np.mean((y_true - y_pred) ** 2)),
     }
+
 
 def fit_minimax(func, domain, degree, fix_boundaries=True):
     """Fit using minimax optimization."""
     if MinimaxPolynomialFitter is None:
         return None, None
-    fitter = MinimaxPolynomialFitter(func, domain=domain, degrees=degree,
-                                     num_intervals=1, fix_boundaries=fix_boundaries)
+    fitter = MinimaxPolynomialFitter(
+        func,
+        domain=domain,
+        degrees=degree,
+        num_intervals=1,
+        fix_boundaries=fix_boundaries,
+    )
     fitter.fit()
     coeffs = fitter.coeffs[0]  # Single interval
     metrics = measure_fit_quality(func, domain, coeffs)
     return coeffs, metrics
+
 
 def fit_least_squares(func, domain, degree):
     """Fit using least squares."""
@@ -120,10 +142,17 @@ def fit_least_squares(func, domain, degree):
     metrics = measure_fit_quality(func, domain, coeffs)
     return coeffs, metrics
 
-def fit_polynomial(func, domain, degree, sampling='uniform', weight_func=None):
+
+def fit_polynomial(func, domain, degree, sampling="uniform", weight_func=None):
     """Fit using standard polynomial fitter."""
-    fitter = PolynomialFitter(func, domain=domain, degrees=degree,
-                              num_intervals=1, sampling=sampling, weight_func=weight_func)
+    fitter = PolynomialFitter(
+        func,
+        domain=domain,
+        degrees=degree,
+        num_intervals=1,
+        sampling=sampling,
+        weight_func=weight_func,
+    )
     fitter.fit()
     coeffs = fitter.coeffs[0]
     metrics = measure_fit_quality(func, domain, coeffs)
@@ -134,16 +163,24 @@ def fit_polynomial(func, domain, degree, sampling='uniform', weight_func=None):
 # Weight functions
 # =============================================================================
 
+
 def peak_weight(x, sigma=1.5, scale=10.0):
-    return 1.0 + scale * np.exp(-0.5 * (x / sigma)**2)
+    return 1.0 + scale * np.exp(-0.5 * (x / sigma) ** 2)
 
 
 # =============================================================================
 # Main: Run all fits
 # =============================================================================
 
+
 def run_all_fits():
-    save_dir = os.path.join(os.path.dirname(__file__), "..", "cuda_benchmarks", "analysis_results", "odd_transform")
+    save_dir = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "cuda_benchmarks",
+        "analysis_results",
+        "odd_transform",
+    )
     os.makedirs(save_dir, exist_ok=True)
 
     all_results = {}
@@ -165,7 +202,9 @@ def run_all_fits():
 
             # Minimax
             try:
-                coeffs, metrics = fit_minimax(sigmoid_odd, domain, deg, fix_boundaries=True)
+                coeffs, metrics = fit_minimax(
+                    sigmoid_odd, domain, deg, fix_boundaries=True
+                )
                 if coeffs is not None:
                     fp16_hex = coeffs_to_fp16_hex(coeffs)
                     results["fits"]["minimax"] = {
@@ -173,7 +212,9 @@ def run_all_fits():
                         "coeffs_fp16_hex": fp16_hex,
                         "metrics": metrics,
                     }
-                    print(f"  Minimax:  max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}")
+                    print(
+                        f"  Minimax:  max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}"
+                    )
                     print(f"            fp16_hex={fp16_hex}")
             except Exception as e:
                 print(f"  Minimax FAILED: {e}")
@@ -188,13 +229,17 @@ def run_all_fits():
                         "coeffs_fp16_hex": fp16_hex,
                         "metrics": metrics,
                     }
-                    print(f"  LS:       max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}")
+                    print(
+                        f"  LS:       max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}"
+                    )
             except Exception as e:
                 print(f"  LS FAILED: {e}")
 
             # Chebyshev
             try:
-                coeffs, metrics = fit_polynomial(sigmoid_odd, domain, deg, sampling='chebyshev')
+                coeffs, metrics = fit_polynomial(
+                    sigmoid_odd, domain, deg, sampling="chebyshev"
+                )
                 if coeffs is not None:
                     fp16_hex = coeffs_to_fp16_hex(coeffs)
                     results["fits"]["chebyshev"] = {
@@ -202,7 +247,9 @@ def run_all_fits():
                         "coeffs_fp16_hex": fp16_hex,
                         "metrics": metrics,
                     }
-                    print(f"  Cheby:    max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}")
+                    print(
+                        f"  Cheby:    max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}"
+                    )
             except Exception as e:
                 print(f"  Cheby FAILED: {e}")
 
@@ -225,7 +272,9 @@ def run_all_fits():
 
             # Minimax
             try:
-                coeffs, metrics = fit_minimax(swish_grad_odd, domain, deg, fix_boundaries=True)
+                coeffs, metrics = fit_minimax(
+                    swish_grad_odd, domain, deg, fix_boundaries=True
+                )
                 if coeffs is not None:
                     fp16_hex = coeffs_to_fp16_hex(coeffs)
                     results["fits"]["minimax"] = {
@@ -233,7 +282,9 @@ def run_all_fits():
                         "coeffs_fp16_hex": fp16_hex,
                         "metrics": metrics,
                     }
-                    print(f"  Minimax:  max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}")
+                    print(
+                        f"  Minimax:  max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}"
+                    )
                     print(f"            fp16_hex={fp16_hex}")
             except Exception as e:
                 print(f"  Minimax FAILED: {e}")
@@ -248,7 +299,9 @@ def run_all_fits():
                         "coeffs_fp16_hex": fp16_hex,
                         "metrics": metrics,
                     }
-                    print(f"  LS:       max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}")
+                    print(
+                        f"  LS:       max_err={metrics['max_error']:.6f}  coeffs={[f'{c:.6f}' for c in coeffs]}"
+                    )
             except Exception as e:
                 print(f"  LS FAILED: {e}")
 
@@ -277,7 +330,9 @@ def run_all_fits():
 
             # Minimax (boundary constrained)
             try:
-                coeffs, metrics = fit_minimax(sigmoid_odd, domain, deg, fix_boundaries=True)
+                coeffs, metrics = fit_minimax(
+                    sigmoid_odd, domain, deg, fix_boundaries=True
+                )
                 if coeffs is not None:
                     fp16_hex = coeffs_to_fp16_hex(coeffs)
                     results["fits"]["minimax_constrained"] = {
@@ -293,7 +348,9 @@ def run_all_fits():
 
             # Minimax (unconstrained)
             try:
-                coeffs, metrics = fit_minimax(sigmoid_odd, domain, deg, fix_boundaries=False)
+                coeffs, metrics = fit_minimax(
+                    sigmoid_odd, domain, deg, fix_boundaries=False
+                )
                 if coeffs is not None:
                     fp16_hex = coeffs_to_fp16_hex(coeffs)
                     results["fits"]["minimax_free"] = {
@@ -309,8 +366,13 @@ def run_all_fits():
 
             # Weighted Chebyshev
             try:
-                coeffs, metrics = fit_polynomial(sigmoid_odd, domain, deg,
-                    sampling='chebyshev', weight_func=lambda x: peak_weight(x, sigma=2.0, scale=5.0))
+                coeffs, metrics = fit_polynomial(
+                    sigmoid_odd,
+                    domain,
+                    deg,
+                    sampling="chebyshev",
+                    weight_func=lambda x: peak_weight(x, sigma=2.0, scale=5.0),
+                )
                 if coeffs is not None:
                     fp16_hex = coeffs_to_fp16_hex(coeffs)
                     results["fits"]["weighted_cheby"] = {
@@ -386,13 +448,15 @@ def run_all_fits():
         for cat_prefix in categories:
             if name.startswith(cat_prefix):
                 for method, fit_data in result.get("fits", {}).items():
-                    categories[cat_prefix].append({
-                        "name": name,
-                        "method": method,
-                        "max_error": fit_data["metrics"]["max_error"],
-                        "coeffs": fit_data.get("coeffs_fp32"),
-                        "fp16_hex": fit_data.get("coeffs_fp16_hex"),
-                    })
+                    categories[cat_prefix].append(
+                        {
+                            "name": name,
+                            "method": method,
+                            "max_error": fit_data["metrics"]["max_error"],
+                            "coeffs": fit_data.get("coeffs_fp32"),
+                            "fp16_hex": fit_data.get("coeffs_fp16_hex"),
+                        }
+                    )
 
     for cat_name, fits in categories.items():
         if not fits:
@@ -401,7 +465,7 @@ def run_all_fits():
         print(f"\n--- {cat_name} (top 5 by max_error) ---")
         for i, f in enumerate(fits[:5]):
             print(f"  {i+1}. {f['name']} ({f['method']}): max_err={f['max_error']:.6f}")
-            if f.get('fp16_hex'):
+            if f.get("fp16_hex"):
                 print(f"     fp16_hex: {f['fp16_hex']}")
 
 

@@ -721,6 +721,37 @@ def softmax_exp2_config(variant: Exp2Variant) -> FA4Config:
     return validate_fa4_config(config)
 
 
+def b5_component_configs() -> dict[str, FA4Config]:
+    """Return the three retained B5 routed-exp2 configurations.
+
+    A routing frequency of zero keeps every lane on the SFU path. Positive
+    frequencies route four lanes per group through the named software backend,
+    so 12 and 32 correspond to nominal fractions of one third and one eighth.
+    """
+
+    variants = (
+        Exp2Variant(
+            name="native",
+            backend="d3",
+            forward_frequency=0,
+            backward_frequency=0,
+        ),
+        Exp2Variant(
+            name="pwl2_safe_f16",
+            backend="pwl2_safe_f16",
+            forward_frequency=12,
+            backward_frequency=32,
+        ),
+        Exp2Variant(
+            name="d2_safe",
+            backend="d2_safe",
+            forward_frequency=12,
+            backward_frequency=32,
+        ),
+    )
+    return {variant.name: softmax_exp2_config(variant) for variant in variants}
+
+
 class _FA4Function(torch.autograd.Function):
     @staticmethod
     def forward(
@@ -965,6 +996,7 @@ __all__ = [
     "SUPPORTED_EXP2_BACKENDS",
     "b2_component_configs",
     "b3_component_configs",
+    "b5_component_configs",
     "build_fa4_module",
     "parse_exp2_frequency",
     "parse_exp2_variants",

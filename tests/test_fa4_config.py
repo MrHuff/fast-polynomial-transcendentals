@@ -12,6 +12,7 @@ from sfu_repro.fa4 import (
     FLASH_SIGMOID_DIRECT_SEQUENCE_LENGTH,
     b2_component_configs,
     b3_component_configs,
+    b5_component_configs,
     parse_exp2_frequency,
     parse_exp2_variants,
     resolve_fa4_config,
@@ -147,6 +148,24 @@ def test_exp2_variant_parser_preserves_auto_and_lane_fractions() -> None:
         exp2_emu_freq_bwd=12,
     )
     assert len(parse_exp2_variants(DEFAULT_EXP2_VARIANTS)) == 11
+
+
+def test_b5_configs_match_retained_routed_exp2_schedules() -> None:
+    configs = b5_component_configs()
+    assert tuple(configs) == ("native", "pwl2_safe_f16", "d2_safe")
+
+    expected = {
+        "native": ("d3", 0, 0),
+        "pwl2_safe_f16": ("pwl2_safe_f16", 12, 32),
+        "d2_safe": ("d2_safe", 12, 32),
+    }
+    for variant, (backend, forward_frequency, backward_frequency) in expected.items():
+        config = configs[variant]
+        assert config.mode == "softmax"
+        assert config.exp2_emu_backend == backend
+        assert config.exp2_emu_freq == forward_frequency
+        assert config.exp2_emu_freq_bwd == backward_frequency
+        assert validate_fa4_config(config) is config
 
 
 @pytest.mark.parametrize(

@@ -1,3 +1,9 @@
 [submodule "flash-attention"]
 	path = flash-attention
 	url = https://github.com/graphcore-research/flash-attention.git
+[submodule "torchtitan"]
+	path = torchtitan
+	url = https://github.com/pytorch/torchtitan.git
+[submodule "lm-evaluation-harness"]
+	path = lm-evaluation-harness
+	url = https://github.com/EleutherAI/lm-evaluation-harness.git

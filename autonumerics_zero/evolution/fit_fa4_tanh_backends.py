@@ -1,30 +1,43 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 """
 Refit FA4 softcap tanh forward polynomials for both deployed targets.
 
 Targets:
   - cute: Float32 Horner evaluation in FA4 score_mod
-  - device: BF16x2 handwritten device evaluation (simulated via torch.bfloat16)
+  - device-search: the historical split-rounded BF16 search surrogate
 
 The output is a JSON file with the chosen Li/Lc sweep point, max/mean error,
-and the exact evaluation semantics used for each backend/degree pair.
+and the evaluation semantics used for each backend/degree pair. The deployed
+packed-BF16 path uses fused operations, so compiled-kernel measurements govern
+its device error.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
+import sys
 
 import numpy as np
 import torch
 
-from constrained_ls_fitter import dual_constrained_ls_fit
+try:
+    from .constrained_ls_fitter import dual_constrained_ls_fit
+    from .fit_provenance import bind_fit_payload, build_fit_provenance
+except ImportError:  # Direct script execution.
+    from constrained_ls_fitter import dual_constrained_ls_fit
+    from fit_provenance import bind_fit_payload, build_fit_provenance
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUT = ROOT / "cuda_benchmarks" / "analysis_results" / "fa4_tanh_backend_fits.json"
+DEFAULT_OUT = (
+    ROOT / "cuda_benchmarks" / "analysis_results" / "fa4_tanh_backend_fits.json"
+)
 
 
 def tanh_target(x: np.ndarray) -> np.ndarray:
@@ -39,7 +52,9 @@ def to_bf16_list(coeffs: list[float] | np.ndarray) -> list[float]:
     return [_bf16_scalar(float(c)) for c in coeffs]
 
 
-def eval_tanh_odd_cute_f32(x_eval: np.ndarray, coeffs: list[float], clamp: float) -> np.ndarray:
+def eval_tanh_odd_cute_f32(
+    x_eval: np.ndarray, coeffs: list[float], clamp: float
+) -> np.ndarray:
     """FA4 CuTe score_mod semantics: f32 Horner on clamped |x|, then min(..., 1)."""
     t = np.minimum(np.abs(x_eval).astype(np.float32), np.float32(clamp))
     coeffs32 = np.asarray(coeffs, dtype=np.float32)
@@ -51,8 +66,10 @@ def eval_tanh_odd_cute_f32(x_eval: np.ndarray, coeffs: list[float], clamp: float
     return h.astype(np.float64)
 
 
-def eval_tanh_odd_device_bf16(x_eval: np.ndarray, coeffs: list[float], clamp: float) -> np.ndarray:
-    """Handwritten BF16x2 semantics: BF16 Horner on clamped |x|, then min(..., 1)."""
+def eval_tanh_odd_device_bf16(
+    x_eval: np.ndarray, coeffs: list[float], clamp: float
+) -> np.ndarray:
+    """Historical split-rounded BF16 search surrogate on clamped ``abs(x)``."""
     t = torch.tensor(np.abs(x_eval), dtype=torch.float64).to(torch.bfloat16)
     t = torch.minimum(t, torch.tensor(clamp, dtype=torch.bfloat16))
     coeffs_bf16 = [torch.tensor(c, dtype=torch.bfloat16) for c in coeffs]
@@ -93,7 +110,10 @@ def sweep_backend(
         semantics = {
             "coefficients": "bfloat16",
             "input": "abs(x) clamped to Lc in bfloat16",
-            "evaluation": "odd Horner in bfloat16, result *= t, result=min(result, 1.0)",
+            "evaluation": (
+                "odd Horner with separately rounded bfloat16 multiply and add; "
+                "result *= t; result=min(result, 1.0); not a packed-FMA emulator"
+            ),
         }
     else:
         raise ValueError(f"Unsupported backend: {backend}")
@@ -129,7 +149,7 @@ def sweep_backend(
     return best
 
 
-def main() -> None:
+def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--degrees", default="3,4,5,6")
     parser.add_argument("--li-min", type=float, default=2.0)
@@ -140,7 +160,18 @@ def main() -> None:
     parser.add_argument("--eval-range", type=float, default=12.0)
     parser.add_argument("--eval-points", type=int, default=8000)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUT)
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: list[str] | None = None) -> None:
+    raw_arguments = list(sys.argv[1:] if argv is None else argv)
+    args = get_parser().parse_args(argv)
+    provenance = build_fit_provenance(
+        script=Path(__file__),
+        arguments=raw_arguments,
+        source_files=[Path(__file__).with_name("constrained_ls_fitter.py")],
+        distributions=("numpy", "scipy", "torch"),
+    )
 
     degrees = [int(tok.strip()) for tok in args.degrees.split(",") if tok.strip()]
     results = {
@@ -166,9 +197,10 @@ def main() -> None:
             ),
         },
     }
+    bind_fit_payload(results, provenance)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.output.open("w") as f:
+    with args.output.open("w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
 
     for backend, backend_results in results["targets"].items():

@@ -13,6 +13,11 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from .benchmark_polynomial_sincos import (
+    attest_rope_sources,
+    rope_result_metadata,
+)
+
 
 def reduce_to_quarter_turn(angles: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     work = np.asarray(angles, dtype=np.float64)
@@ -114,9 +119,7 @@ def _run_sollya_sparse_fit(
     precision_bits: int,
 ) -> np.ndarray:
     monomial_argument = "[|" + ",".join(str(value) for value in monomials) + "|]"
-    format_argument = (
-        "[|" + ",".join(str(precision_bits) for _ in monomials) + "|]"
-    )
+    format_argument = "[|" + ",".join(str(precision_bits) for _ in monomials) + "|]"
     interval_min = "1b-20" if min(monomials) > 0 else "0"
     commands = [
         "verbosity = 0;",
@@ -311,14 +314,17 @@ def parse_args() -> argparse.Namespace:
         default="float32",
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--allow-unbound-source",
+        action="store_true",
+        help="Permit a diagnostic fit result from a dirty source checkout.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    interval_max = (
-        math.pi / 4.0 if args.reduction == "quarter-turn" else math.pi / 2.0
-    )
+    interval_max = math.pi / 4.0 if args.reduction == "quarter-turn" else math.pi / 2.0
     uniform_angles = np.linspace(
         -interval_max,
         interval_max,
@@ -379,7 +385,17 @@ def main() -> None:
         args.coefficient_dtype,
     )
 
+    repository_state, attestations, source_bound = attest_rope_sources(
+        spline_ops=None,
+        allow_unbound_source=args.allow_unbound_source,
+    )
     result = {
+        **rope_result_metadata(
+            "rope-polynomial-fitting",
+            repository_state=repository_state,
+            attestations=attestations,
+            source_bound=source_bound,
+        ),
         "basis": {
             "name": args.basis,
             "sin": sin_form,
@@ -396,6 +412,13 @@ def main() -> None:
             "head_dim": args.head_dim,
             "max_seq_len": args.max_seq_len,
             "theta": args.theta,
+        },
+        "measurement": {
+            "fit_method": args.fit_method,
+            "reduction": args.reduction,
+            "weighting": args.weighting,
+            "coefficient_dtype": args.coefficient_dtype,
+            "summary_statistic": "deterministic fit and numerical error sweep",
         },
         "sin_coefficients": sin_coefficients.tolist(),
         "cos_coefficients": cos_coefficients.tolist(),
@@ -418,6 +441,13 @@ def main() -> None:
             "std": float(np.std(reduced_rope_angles)),
             "positive_fraction": float(np.mean(reduced_rope_angles > 0.0)),
         },
+    }
+    result["results"] = {
+        "sin_coefficients": result["sin_coefficients"],
+        "cos_coefficients": result["cos_coefficients"],
+        "uniform_metrics": result["uniform_metrics"],
+        "rope_metrics": result["rope_metrics"],
+        "reduced_rope_distribution": result["reduced_rope_distribution"],
     }
     rendered = json.dumps(result, indent=2, sort_keys=True)
     print(rendered)

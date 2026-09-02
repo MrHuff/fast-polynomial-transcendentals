@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Open-weight model protocol used for the paper's D4 polynomial evaluation.",
+  "description": "Open-weight quality and throughput protocol for the paper's polynomial interventions.",
   "provenance": {
     "derived_from": "Graphcore low-bits-training",
     "source_commit": "393b69e2993ef00c812dfc87ac5f93c146159f45",
@@ -8,16 +8,27 @@
     "suite_source": "scripts/run_hf_poly_eval_suite.py",
     "license": "Apache-2.0",
     "runtime_config_attested": false,
-    "note": "The historical result artifact records campaign names but does not embed source revisions or sequence lengths; these settings are reconstructed from the source commit above."
+    "public_revision_selection_date": "2026-09-02",
+    "note": "The historical result artifact records campaign names but does not embed every source revision or sequence length. Source-retained settings are reconstructed from the commit above; missing Qwen revisions are immutable selections for the new public protocol."
   },
   "protocol": {
     "batch_size": 1,
+    "device": "cuda",
+    "seed": 1234,
+    "throughput_mode": "both",
+    "quality_mode": "eval",
     "prefill_measurements": 20,
     "prefill_warmups": 5,
     "decode_steps": 64,
     "decode_measurements": 10,
     "decode_warmups": 2,
     "dtype": "bf16",
+    "quality_task_config": "configs/lm_eval_paper_tasks.json",
+    "quality_log_samples": true,
+    "quality_eval_limit": null,
+    "quality_default_num_fewshot": 0,
+    "mxfp4_dequantize": false,
+    "freeze_granite_moe_routing": false,
     "quality_tasks": [
       "mmlu",
       "hellaswag",
@@ -43,9 +54,11 @@
     {
       "key": "qwen2p5_7b",
       "paper_name": "Qwen2.5 7B",
+      "replacement": "D4 dense SwiGLU",
       "model_id": "Qwen/Qwen2.5-7B",
-      "revision": null,
-      "revision_note": "No revision was recorded by the historical suite.",
+      "revision": "d149729398750b98c0af14eb82c78cfe92750796",
+      "revision_provenance": "public-protocol-selection",
+      "revision_note": "The historical revision was not retained. This immutable revision was selected for new public reruns on 2026-09-02.",
       "software": {
         "transformers": "4.48.2",
         "accelerate": "1.12.0",
@@ -67,9 +80,11 @@
     {
       "key": "qwen3_30b_a3b_base",
       "paper_name": "Qwen3 30B-A3B",
+      "replacement": "D4 expert SwiGLU",
       "model_id": "Qwen/Qwen3-30B-A3B-Base",
-      "revision": null,
-      "revision_note": "No revision was recorded by the historical suite.",
+      "revision": "1b75feb79f60b8dc6c5bc769a898c206a1c6a4f9",
+      "revision_provenance": "public-protocol-selection",
+      "revision_note": "The historical revision was not retained. This immutable revision was selected for new public reruns on 2026-09-02.",
       "software": {
         "transformers": "5.9.0",
         "accelerate": "1.13.0",
@@ -91,8 +106,10 @@
     {
       "key": "glm4p7_flash",
       "paper_name": "GLM-4.7 Flash",
+      "replacement": "D4 expert SwiGLU + D4 router sigmoid",
       "model_id": "zai-org/GLM-4.7-Flash",
       "revision": "7dd20894a642a0aa287e9827cb1a1f7f91386b67",
+      "revision_provenance": "historical-source-derived",
       "software": {
         "transformers": "5.9.0",
         "accelerate": "1.13.0",
@@ -114,8 +131,10 @@
     {
       "key": "gpt_oss_120b",
       "paper_name": "GPT-OSS 120B",
+      "replacement": "D4 expert SiLU epilogue",
       "model_id": "openai/gpt-oss-120b",
       "revision": "b5c939de8f754692c1647ca79fbf85e8c1e70f8a",
+      "revision_provenance": "historical-source-derived",
       "software": {
         "transformers": "5.9.0",
         "accelerate": "1.13.0",
@@ -137,8 +156,10 @@
     {
       "key": "kimi_linear_48b_a3b_base",
       "paper_name": "Kimi Linear 48B-A3B",
+      "replacement": "D4 expert SwiGLU + D4 router sigmoid",
       "model_id": "moonshotai/Kimi-Linear-48B-A3B-Base",
       "revision": "3b171c17bfc4ee348599b6781a2ca8715c21c8dc",
+      "revision_provenance": "historical-source-derived",
       "software": {
         "transformers": "4.57.6",
         "accelerate": "1.12.0",

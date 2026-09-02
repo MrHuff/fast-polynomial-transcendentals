@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Modified in 2026 for the standalone fast-polynomial-transcendentals release.
 
 import os
 import time
@@ -11,9 +14,7 @@ def verify_compiled_swiglu_d3():
     from spline_compile import make_spline_silu_mul
 
     activation = make_spline_silu_mul(3, "current")
-    gate = torch.linspace(
-        -12.0, 12.0, 4097, device="cuda", dtype=torch.bfloat16
-    )
+    gate = torch.linspace(-12.0, 12.0, 4097, device="cuda", dtype=torch.bfloat16)
     up = torch.linspace(-1.0, 1.0, gate.numel(), device="cuda", dtype=torch.bfloat16)
     grad_out = torch.linspace(
         1.0, -1.0, gate.numel(), device="cuda", dtype=torch.bfloat16
@@ -34,9 +35,7 @@ def verify_compiled_swiglu_d3():
     torch.testing.assert_close(
         compiled_gate.grad, expected_grad_gate, rtol=0.0, atol=0.0
     )
-    torch.testing.assert_close(
-        compiled_up.grad, expected_grad_up, rtol=0.0, atol=0.0
-    )
+    torch.testing.assert_close(compiled_up.grad, expected_grad_up, rtol=0.0, atol=0.0)
 
     native_gate = gate.float().requires_grad_(True)
     native_up = up.float().requires_grad_(True)
@@ -55,9 +54,11 @@ def verify_compiled_packed_swiglu_d3():
     """Check the copy-free fused-linear activation and its packed gradient."""
     from spline_compile import make_spline_silu_packed
 
-    packed = torch.linspace(
-        -12.0, 12.0, 8192, device="cuda", dtype=torch.bfloat16
-    ).reshape(2, 4096).requires_grad_(True)
+    packed = (
+        torch.linspace(-12.0, 12.0, 8192, device="cuda", dtype=torch.bfloat16)
+        .reshape(2, 4096)
+        .requires_grad_(True)
+    )
     grad_out = torch.linspace(
         1.0, -1.0, 4096, device="cuda", dtype=torch.bfloat16
     ).reshape(2, 2048)
@@ -84,9 +85,11 @@ def verify_compiled_packed_swiglu_d3_native_backward():
     """Check D3 forward with native SiLU gradients in one packed kernel."""
     from spline_compile import make_spline_silu_packed
 
-    packed = torch.linspace(
-        -12.0, 12.0, 8192, device="cuda", dtype=torch.bfloat16
-    ).reshape(2, 4096).requires_grad_(True)
+    packed = (
+        torch.linspace(-12.0, 12.0, 8192, device="cuda", dtype=torch.bfloat16)
+        .reshape(2, 4096)
+        .requires_grad_(True)
+    )
     grad_out = torch.linspace(
         1.0, -1.0, 4096, device="cuda", dtype=torch.bfloat16
     ).reshape(2, 2048)
@@ -103,9 +106,7 @@ def verify_compiled_packed_swiglu_d3_native_backward():
     actual = activation(packed)
     actual.backward(grad_out)
 
-    expected = spline_ops.swish_mul_fwd_variant(
-        gate.bfloat16(), up.bfloat16(), 3, 0
-    )
+    expected = spline_ops.swish_mul_fwd_variant(gate.bfloat16(), up.bfloat16(), 3, 0)
     torch.testing.assert_close(actual, expected, rtol=0.0, atol=0.0)
     expected_grad = torch.cat((gate.grad, up.grad), dim=-1).bfloat16()
     torch.testing.assert_close(packed.grad, expected_grad, rtol=0.01, atol=0.0078125)
@@ -115,9 +116,11 @@ def verify_compiled_packed_native_swiglu():
     """Check the apples-to-apples packed SFU baseline and its gradients."""
     from spline_compile import make_native_silu_packed
 
-    packed = torch.linspace(
-        -12.0, 12.0, 8192, device="cuda", dtype=torch.bfloat16
-    ).reshape(2, 4096).requires_grad_(True)
+    packed = (
+        torch.linspace(-12.0, 12.0, 8192, device="cuda", dtype=torch.bfloat16)
+        .reshape(2, 4096)
+        .requires_grad_(True)
+    )
     grad_out = torch.linspace(
         1.0, -1.0, 4096, device="cuda", dtype=torch.bfloat16
     ).reshape(2, 2048)
@@ -155,7 +158,9 @@ def benchmark(name, func, args, n_warmup=10, n_repeats=100):
 
 def verify_bf16_swish_tails():
     x = torch.tensor([-100.0, -20.0, 20.0, 100.0], device="cuda", dtype=torch.bfloat16)
-    expected = torch.tensor([0.0, 0.0, 20.0, 100.0], device="cuda", dtype=torch.bfloat16)
+    expected = torch.tensor(
+        [0.0, 0.0, 20.0, 100.0], device="cuda", dtype=torch.bfloat16
+    )
     for degree in (3, 4, 5, 6):
         y = spline_ops.swish_mul_fwd_variant(x, torch.ones_like(x), degree, 0)
         torch.testing.assert_close(y, expected, rtol=0.0, atol=0.0)
@@ -165,9 +170,7 @@ def verify_bf16_sollya_variants():
     """Exercise Sollya coefficients through unary, fused, and packed paths."""
     x = torch.linspace(-8.0, 8.0, 16384, device="cuda", dtype=torch.bfloat16)
     up = torch.linspace(-1.0, 1.0, x.numel(), device="cuda", dtype=torch.bfloat16)
-    grad_out = torch.linspace(
-        1.0, -1.0, x.numel(), device="cuda", dtype=torch.bfloat16
-    )
+    grad_out = torch.linspace(1.0, -1.0, x.numel(), device="cuda", dtype=torch.bfloat16)
 
     sigmoid = spline_ops.sigmoid_fwd_variant(x, 4, 1)
     torch.testing.assert_close(
@@ -188,9 +191,7 @@ def verify_bf16_sollya_variants():
     packed_output = spline_ops.swish_mul_packed_fwd_variant(packed, 4, 1)
     torch.testing.assert_close(packed_output.reshape(-1), fused, rtol=0.0, atol=0.0)
 
-    grad_gate, grad_up = spline_ops.swish_mul_bwd_variant(
-        grad_out, x, up, 4, 1
-    )
+    grad_gate, grad_up = spline_ops.swish_mul_bwd_variant(grad_out, x, up, 4, 1)
     packed_grad = spline_ops.swish_mul_packed_bwd_variant(
         grad_out.reshape(8, -1), packed, 4, 1
     )
@@ -245,8 +246,8 @@ def verify_and_bench():
     if os.environ.get("SPLINE_OPS_TEST_LARGE_PACKED") == "1":
         verify_packed_swish_large_row_offsets()
     device = torch.device("cuda")
-    N = 1024 * 1024 * 16 # 16M elements
-    x = torch.randn(N, device=device, dtype=torch.half) * 3.0 # Range approx [-9, 9]
+    N = 1024 * 1024 * 16  # 16M elements
+    x = torch.randn(N, device=device, dtype=torch.half) * 3.0  # Range approx [-9, 9]
     grad_out = torch.randn(N, device=device, dtype=torch.half)
 
     # --- SIGMOID ---
@@ -259,8 +260,9 @@ def verify_and_bench():
 
     fwd_time_ref = benchmark("Sigmoid Native", torch.sigmoid, (x,))
     fwd_time_test = benchmark("Sigmoid Spline", spline_ops.sigmoid_fwd, (x,))
-    print(f"Fwd Time: Native {fwd_time_ref:.3f} ms, Spline {fwd_time_test:.3f} ms -> Speedup {fwd_time_ref/fwd_time_test:.2f}x")
-
+    print(
+        f"Fwd Time: Native {fwd_time_ref:.3f} ms, Spline {fwd_time_test:.3f} ms -> Speedup {fwd_time_ref/fwd_time_test:.2f}x"
+    )
 
     # Bwd
     # Gradients depend on implementation. Native: sig * (1-sig)
@@ -285,8 +287,12 @@ def verify_and_bench():
         return g * s * (1 - s)
 
     bwd_time_ref = benchmark("Sigmoid Bwd Native", native_sigmoid_bwd, (grad_out, x))
-    bwd_time_test = benchmark("Sigmoid Bwd Spline", spline_ops.sigmoid_bwd, (grad_out, x))
-    print(f"Bwd Time: Native {bwd_time_ref:.3f} ms, Spline {bwd_time_test:.3f} ms -> Speedup {bwd_time_ref/bwd_time_test:.2f}x")
+    bwd_time_test = benchmark(
+        "Sigmoid Bwd Spline", spline_ops.sigmoid_bwd, (grad_out, x)
+    )
+    print(
+        f"Bwd Time: Native {bwd_time_ref:.3f} ms, Spline {bwd_time_test:.3f} ms -> Speedup {bwd_time_ref/bwd_time_test:.2f}x"
+    )
 
     # --- TANH ---
     print("\n--- Tanh ---")
@@ -299,12 +305,14 @@ def verify_and_bench():
 
     fwd_time_ref = benchmark("Tanh Native", torch.tanh, (x,))
     fwd_time_test = benchmark("Tanh Spline", spline_ops.tanh_fwd, (x,))
-    print(f"Fwd Time: Native {fwd_time_ref:.3f} ms, Spline {fwd_time_test:.3f} ms -> Speedup {fwd_time_ref/fwd_time_test:.2f}x")
+    print(
+        f"Fwd Time: Native {fwd_time_ref:.3f} ms, Spline {fwd_time_test:.3f} ms -> Speedup {fwd_time_ref/fwd_time_test:.2f}x"
+    )
 
     # Bwd: 1 - tanh^2
     def native_tanh_bwd(g, x):
         t = torch.tanh(x)
-        return g * (1 - t*t)
+        return g * (1 - t * t)
 
     grad_test = spline_ops.tanh_bwd(grad_out, x)
     grad_ref = native_tanh_bwd(grad_out, x)
@@ -315,7 +323,9 @@ def verify_and_bench():
 
     bwd_time_ref = benchmark("Tanh Bwd Native", native_tanh_bwd, (grad_out, x))
     bwd_time_test = benchmark("Tanh Bwd Spline", spline_ops.tanh_bwd, (grad_out, x))
-    print(f"Bwd Time: Native {bwd_time_ref:.3f} ms, Spline {bwd_time_test:.3f} ms -> Speedup {bwd_time_ref/bwd_time_test:.2f}x")
+    print(
+        f"Bwd Time: Native {bwd_time_ref:.3f} ms, Spline {bwd_time_test:.3f} ms -> Speedup {bwd_time_ref/bwd_time_test:.2f}x"
+    )
 
     # --- SWISH ---
     print("\n--- Swish ---")
@@ -328,7 +338,9 @@ def verify_and_bench():
 
     fwd_time_ref = benchmark("Swish Native", torch.nn.functional.silu, (x,))
     fwd_time_test = benchmark("Swish Spline", spline_ops.swish_fwd, (x,))
-    print(f"Fwd Time: Native {fwd_time_ref:.3f} ms, Spline {fwd_time_test:.3f} ms -> Speedup {fwd_time_ref/fwd_time_test:.2f}x")
+    print(
+        f"Fwd Time: Native {fwd_time_ref:.3f} ms, Spline {fwd_time_test:.3f} ms -> Speedup {fwd_time_ref/fwd_time_test:.2f}x"
+    )
 
     # Bwd
     def native_swish_bwd(g, x):
@@ -344,7 +356,10 @@ def verify_and_bench():
 
     bwd_time_ref = benchmark("Swish Bwd Native", native_swish_bwd, (grad_out, x))
     bwd_time_test = benchmark("Swish Bwd Spline", spline_ops.swish_bwd, (grad_out, x))
-    print(f"Bwd Time: Native {bwd_time_ref:.3f} ms, Spline {bwd_time_test:.3f} ms -> Speedup {bwd_time_ref/bwd_time_test:.2f}x")
+    print(
+        f"Bwd Time: Native {bwd_time_ref:.3f} ms, Spline {bwd_time_test:.3f} ms -> Speedup {bwd_time_ref/bwd_time_test:.2f}x"
+    )
+
 
 if __name__ == "__main__":
     verify_and_bench()

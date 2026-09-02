@@ -1,0 +1,14 @@
+# Source-derived scientific runtime for qwen3_30b_a3b_base,
+# glm4p7_flash, and gpt_oss_120b.
+# Install a CUDA-enabled PyTorch build for the target GPU before this file.
+# The historical launcher inherited PyTorch from its image, so no exact public
+# PyTorch wheel is asserted here.
+transformers==5.9.0
+lm-eval==0.4.12
+datasets==4.8.5
+evaluate==0.4.6
+accelerate==1.13.0
+safetensors==0.7.0
+sentencepiece==0.2.1
+protobuf==6.33.0
+kernels==0.14.1

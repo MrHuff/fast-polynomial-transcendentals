@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MrHuff/fast-polynomial-transcendentals/raw/main/schemas/result-v1.json",
   "title": "Fast Polynomial Transcendentals result envelope, version 1",
-  "description": "Common metadata envelope for newly generated fitting, kernel, component, and model measurements. Experiment-specific fields may be added inside the declared objects.",
+  "description": "Common metadata envelope for newly generated source-bound benchmark measurements. Task-specific fitting and TorchTitan exports use their separately documented JSON layouts.",
   "type": "object",
   "required": [
     "schema_version",
@@ -33,6 +33,7 @@
         "provenance_class": {
           "enum": [
             "new-measurement",
+            "diagnostic-unbound-source",
             "historical-materialized",
             "historical-source-derived",
             "blocked"

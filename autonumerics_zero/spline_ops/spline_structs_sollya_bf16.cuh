@@ -1,5 +1,9 @@
 // spline_structs_sollya_bf16.cuh — BF16 Sollya fpminimax activation structs
 // AUTO-GENERATED with the same runtime clamps and evaluation shapes as spline_structs_odd_bf16.cuh
+// Copyright (c) 2026 Graphcore Ltd. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+// Modified in 2026 for the standalone fast-polynomial-transcendentals release.
+
 #pragma once
 #include <cuda_bf16.h>
 

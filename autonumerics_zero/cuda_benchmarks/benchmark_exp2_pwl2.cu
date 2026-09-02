@@ -293,8 +293,14 @@ float time_kernel(Kernel kernel, dim3 grid, dim3 block, Args... args) {
     check_cuda(cudaGetLastError(), "timed kernel launch");
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-    std::sort(samples.begin(), samples.end());
-    return samples[samples.size() / 2];
+    std::printf("SAMPLES ms=");
+    for (size_t index = 0; index < samples.size(); ++index) {
+        std::printf("%s%.9g", index == 0 ? "" : ",", samples[index]);
+    }
+    std::printf("\n");
+    auto sorted_samples = samples;
+    std::sort(sorted_samples.begin(), sorted_samples.end());
+    return sorted_samples[sorted_samples.size() / 2];
 }
 
 struct ErrorMetrics {
@@ -495,6 +501,11 @@ int main() {
     cudaDeviceProp properties{};
     check_cuda(cudaGetDeviceProperties(&properties, 0), "cudaGetDeviceProperties");
     std::printf("GPU name=%s cc=%d.%d\n", properties.name, properties.major, properties.minor);
+    std::printf(
+        "PROTOCOL timing_samples=%d warmup_launches=%d timed_launches=%d "
+        "compute_threads=%d compute_iterations=%d compute_chains=%d\n",
+        kTimingSamples, kWarmupLaunches, kTimedLaunches, kComputeThreads,
+        kComputeIterations, kComputeChains);
 
     const auto fractional_error_input = make_fractional_h2(kErrorPairs);
     const auto full_error_input = make_full_f32(kErrorPairs);

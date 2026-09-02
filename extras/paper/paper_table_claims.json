@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "scope": "Quantitative tables in the September 2026 manuscript snapshot packaged under extras/paper/manuscript",
+  "manuscript_source": {
+    "path": "extras/paper/manuscript/main.tex",
+    "sha256": "9f17a57747f8f3edd4933cd3af2c9ac6815a702c8f3ab865cedd820834c753f6"
+  },
+  "tables": {
+    "function-summary": {
+      "source": "autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json",
+      "validation_scope": "numeric source-to-typeset consistency only",
+      "semantic_review": "extras/paper/FUNCTION_TABLE_REVIEW.md",
+      "rows": [
+        {"split": "forward", "family": "sigmoid", "degree": "D3", "ours": 5.44, "sollya": 5.47},
+        {"split": "forward", "family": "tanh", "degree": "D4", "ours": 9.61, "sollya": 7.22},
+        {"split": "forward", "family": "swish", "degree": "D3", "ours": 21.74, "sollya": 19.95},
+        {"split": "forward", "family": "gelu", "degree": "D5", "ours": 1.06, "sollya": 0.50},
+        {"split": "backward", "family": "sigmoid'", "degree": "D4", "ours": 4.46, "sollya": 1.97},
+        {"split": "backward", "family": "tanh'", "degree": "D4", "ours": 19.98, "sollya": 7.81},
+        {"split": "backward", "family": "swish'", "degree": "D3", "ours": 16.85, "sollya": 12.15},
+        {"split": "backward", "family": "gelu'", "degree": "D5", "ours": 8.58, "sollya": 2.36}
+      ],
+      "scale": 1000,
+      "decimals": 2
+    },
+    "integration-summary": {
+      "source": "evidence/report-data/b1_b4_100_iteration_phase_probes_gb200.json",
+      "rows": [
+        {"case": "B1", "forward": 1.055, "backward": 1.007},
+        {"case": "B2", "forward": 2.053, "backward": 1.046},
+        {"case": "B3", "forward": 1.074, "backward": 1.001},
+        {"case": "B4", "forward": 1.003, "backward": 1.005}
+      ],
+      "decimals": 3
+    },
+    "model-timing-summary": {
+      "sources": [
+        "evidence/report-data/b1_b4_full_model_100step_gb200.json",
+        "evidence/report-data/b4_27a4b_local_100step_gb200.json"
+      ],
+      "rows": [
+        {"case": "B1", "forward": 1.005, "backward": 1.038, "gpu_step": 1.027, "throughput": 1.027},
+        {"case": "B2", "forward": 1.107, "backward": 1.004, "gpu_step": 1.029, "throughput": 1.029},
+        {"case": "B3", "forward": 1.011, "backward": 0.997, "gpu_step": 1.003, "throughput": 1.002},
+        {"case": "B4", "forward": 1.087, "backward": 1.077, "gpu_step": 1.080, "throughput": 1.080}
+      ],
+      "decimals": 3
+    },
+    "same-checkpoint-eval": {
+      "source": "evidence/report-data/sollya_eval_results.csv",
+      "rows": [
+        {"model": "Qwen2.5 7B", "fit": "current", "mean_accuracy_change_pp": -0.51, "native_perplexity": 8.734, "variant_perplexity": 197.677, "prefill": 1.035, "decode": 1.013},
+        {"model": "Qwen2.5 7B", "fit": "sollya", "mean_accuracy_change_pp": -39.80, "native_perplexity": 8.734, "variant_perplexity": 298700.735, "prefill": 1.036, "decode": 1.015},
+        {"model": "Qwen3 30B-A3B", "fit": "current", "mean_accuracy_change_pp": -0.10, "native_perplexity": 7.648, "variant_perplexity": 7.655, "prefill": 1.056, "decode": 1.025},
+        {"model": "Qwen3 30B-A3B", "fit": "sollya", "mean_accuracy_change_pp": 0.04, "native_perplexity": 7.648, "variant_perplexity": 7.651, "prefill": 1.051, "decode": 1.025},
+        {"model": "GLM-4.7 Flash", "fit": "current", "mean_accuracy_change_pp": -0.30, "native_perplexity": 11.406, "variant_perplexity": 11.400, "prefill": 0.969, "decode": 1.004},
+        {"model": "GLM-4.7 Flash", "fit": "sollya", "mean_accuracy_change_pp": -0.18, "native_perplexity": 11.406, "variant_perplexity": 11.614, "prefill": 0.966, "decode": 1.003},
+        {"model": "GPT-OSS 120B", "fit": "current", "mean_accuracy_change_pp": 0.41, "native_perplexity": 414.947, "variant_perplexity": 407.545, "prefill": 1.001, "decode": 0.993},
+        {"model": "GPT-OSS 120B", "fit": "sollya", "mean_accuracy_change_pp": -0.08, "native_perplexity": 414.947, "variant_perplexity": 411.659, "prefill": 0.999, "decode": 0.993},
+        {"model": "Kimi Linear 48B-A3B", "fit": "current", "mean_accuracy_change_pp": 0.04, "native_perplexity": 7.102, "variant_perplexity": 7.101, "prefill": 1.084, "decode": 1.013},
+        {"model": "Kimi Linear 48B-A3B", "fit": "sollya", "mean_accuracy_change_pp": -0.09, "native_perplexity": 7.102, "variant_perplexity": 7.100, "prefill": 1.084, "decode": 1.009}
+      ],
+      "accuracy_decimals": 2,
+      "other_decimals": 3
+    },
+    "pretraining-summary": {
+      "source": "evidence/report-data/b1_b4_paired_loss_curves.csv",
+      "rows": [
+        {"case": "B1", "horizon_billions": 100.2701, "native": 2.6264, "polynomial": 2.7050, "change": 0.0786},
+        {"case": "B2", "horizon_billions": 100.2701, "native": 2.5415, "polynomial": 2.5439, "change": 0.0025},
+        {"case": "B3", "horizon_billions": 100.2701, "native": 4.9471, "polynomial": 4.8397, "change": -0.1073},
+        {"case": "B4", "horizon_billions": 100.2439, "native": 2.1532, "polynomial": 2.1560, "change": 0.0028}
+      ],
+      "decimals": 4,
+      "smoothing_half_life_tokens": 1000000000,
+      "interpolation_grid_step_tokens": 50000000
+    }
+  }
+}

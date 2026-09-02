@@ -1,0 +1,37 @@
+The manuscript builds from \path{extras/paper/manuscript/}; build and source-package
+instructions are in its \path{README.md}. The standalone reproduction repository is
+\url{https://github.com/MrHuff/fast-polynomial-transcendentals}. It contains the
+paper-specific integration layer without the original model-training framework,
+plus the fitting, packed-kernel, open-weight, and materialized-evidence paths.
+Filenames below without a directory are under \path{evidence/report-data/}.
+
+\begin{description}[leftmargin=1.55in,style=nextline]
+    \item[Function error]
+    \path{autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json}
+    contains the constrained and same-form Sollya comparison.
+
+    \item[Integrated timing]
+    \path{b1_b4_100_iteration_phase_probes_gb200.json},
+    \path{b1_b4_full_model_100step_gb200.json}, and
+    \path{b4_27a4b_local_100step_gb200.json} contain the component and
+    complete-model probes.
+
+    \item[Paired pre-training]
+    \path{b1_b4_paired_loss_curves.csv} contains the sampled histories used in
+    \cref{fig:paired-production-loss};
+    \path{b1_b4_paired_loss_curves.provenance.json} records the retained run
+    fragments. Complete launch manifests for initialization and data order are
+    not part of the artifact set.
+
+    \item[Open-weight evaluation]
+    \path{sollya_eval_results.csv} contains \cref{tab:eval};
+    \path{open_weight_eval_protocol.json} records the source-derived launch
+    configuration and runtime-attestation status.
+
+    \item[Implementations]
+    In the standalone repository, fitting code is under
+    \path{autonumerics_zero/evolution/}, packed kernels are under
+    \path{autonumerics_zero/spline_ops/}, portable B1--B4 plumbing is under
+    \path{src/sfu_repro/}, and B3's inline-PTX source is in the pinned
+    \path{flash-attention} submodule.
+\end{description}

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "artifact_type": "manuscript-function-table-lineage",
+  "scope": "Function-level coefficient-control values used by manuscript Table 2",
+  "retained_artifact": {
+    "path": "autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json",
+    "sha256": "6c51affbb0ba593e21ad456c967bc9afe4d486d0a3e9eb9370ece9710c30b918",
+    "layout": "families.<function>.<degree>.{current_max_error,sollya_max_error}"
+  },
+  "audited_generator_snapshot": {
+    "path": "autonumerics_zero/spline_ops/generate_sollya_structs_bf16.py",
+    "sha256": "7c3c4c053326b5d29076965616ec15edfd802476241e5bf1404f8f747fc4fbe2",
+    "relationship": "Pre-metadata generator source audited against the retained artifact; this is not an immutable producing-environment receipt."
+  },
+  "current_header_snapshot": {
+    "path": "autonumerics_zero/spline_ops/spline_structs_odd_bf16.cuh",
+    "sha256": "3207d0691ecaedbbfb64e83efb79929013a015609a2485a7ec6cb20dbe275950"
+  },
+  "measurement": {
+    "metric": "maximum absolute error",
+    "evaluation": "host NumPy real-arithmetic Horner reconstruction",
+    "grid": "20,001 uniformly spaced points on each row's closed interval [-Lc, Lc]",
+    "current_coefficients": "decimal literals parsed from the deployed CUDA header and evaluated directly without BF16 pre-rounding",
+    "sollya_coefficients": "Sollya fpminimax coefficients constrained to 8-bit precision and cast to BF16 before host evaluation",
+    "intermediate_rounding": "none; target-precision intermediate rounding is not replayed",
+    "device_measurement": "not a device measurement; this is a host-side coefficient control"
+  },
+  "shared_comparison_controls": [
+    "degree",
+    "sparse monomial structure",
+    "runtime clamp",
+    "algebraic reconstruction",
+    "host evaluation grid and error metric"
+  ],
+  "special_case": "Both Swish-forward columns are composed from their corresponding sigmoid coefficient rows rather than fitted as independent Swish polynomials.",
+  "provenance_limitations": [
+    {
+      "id": "original-producing-environment-not-captured",
+      "detail": "The retained artifact contains no embedded command, source hashes, Sollya version, NumPy version, PyTorch version, or immutable producing-environment record. This sidecar records a source audit of the retained bytes."
+    }
+  ],
+  "review_required": [
+    {
+      "id": "asymmetric-coefficient-rounding",
+      "category": "manuscript-scientific-semantics",
+      "observed": "Current deployed-header decimal literals are evaluated directly in host NumPy, while Sollya coefficients are explicitly cast to BF16 first.",
+      "manuscript_risk": "Describing both columns as BF16-rounded coefficients is inconsistent with the retained comparison program.",
+      "required_review": "Revise the Table 2 caption/method text or regenerate a symmetric coefficient comparison and update the table."
+    },
+    {
+      "id": "current-fit-method-label-not-established",
+      "category": "manuscript-scientific-semantics",
+      "observed": "The artifact establishes only that the current column came from deployed CUDA-header rows; it does not preserve fit-method lineage for every later deployed or device-refit row.",
+      "manuscript_risk": "Labeling every current row endpoint-constrained least squares is unsupported by the retained lineage.",
+      "required_review": "Use a current/deployed-header label or provide row-level evidence establishing the fitting method."
+    }
+  ]
+}

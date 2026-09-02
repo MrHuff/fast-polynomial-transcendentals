@@ -51,6 +51,7 @@ is a new measurement, not a reproduction of the paper's timing result.
 | Run held-out validation for a new paired training run | Pinned TorchTitan and the selected validation split |
 | Re-run and summarize supported downstream open-weight evaluations | Pinned lm-eval tasks, datasets, per-model environments, model/data access, CUDA, and supported GPU |
 | Replot the retained paired pre-training histories | Offline from materialized evidence |
+| Build the review manuscript and audit its released figures and numeric table cells | Offline paper extras; the accuracy plots additionally require the compiled CUDA extension and a supported GPU. Table 2 method and arithmetic semantics remain under review |
 | Bit-for-bit repeat the historical 100B-token trajectories | Not possible from retained evidence |
 
 The public TorchTitan recipes expose the model shapes, intervention code,
@@ -143,6 +144,9 @@ workflows.
   isolated benchmarks.
 - `evidence/report-data/`: materialized paper evidence retained for audit.
 - `evidence/pretraining/`: offline plotting code for retained trajectories.
+- `extras/paper/`: arXiv-safe manuscript source plus offline figure and table
+  generation/audit tools; manuscript and branding rights remain separate from
+  the software license.
 - `repro/experiments.json`: machine-readable workflow and status map.
 - `schemas/result-v1.json`: metadata envelope used by source-bound benchmark
   drivers; fitter and TorchTitan exports retain documented task-specific JSON.
@@ -195,6 +199,16 @@ See [provenance](docs/PROVENANCE.md) for known source bindings and gaps. In
 particular, some historical artifacts came from dirty worktrees or do not
 retain their complete invocation. Claims should remain scoped to the evidence
 class recorded there.
+
+The table checker binds the packaged `main.tex` by SHA-256 and establishes
+that every mapped Table 2 number comes from the retained comparison JSON at
+the stated rounding. It does not establish that
+both coefficient columns received the same BF16 treatment, that the values are
+device errors, or that every current row has the method lineage named in the
+manuscript. See the [function-table review](extras/paper/FUNCTION_TABLE_REVIEW.md).
+The checker therefore reports `review-required` by default even when the
+numeric cells match; an explicit acknowledgement retains those review items in
+the output without resolving them.
 
 ## License and attribution
 

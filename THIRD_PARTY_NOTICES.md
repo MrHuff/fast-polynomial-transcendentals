@@ -38,6 +38,15 @@ revision for public downstream reruns.
 - Pinned revision: `38afdedda24b0bf26e6904d3bed7807c19a6906e`
 - License: BSD-3-Clause; see [`flash-attention/LICENSE`](flash-attention/LICENSE)
 
+## Manuscript and branding assets
+
+`extras/paper/manuscript` contains the paper source, figures, Graphcore report
+style, and Graphcore symbol needed to reproduce the review manuscript. These
+materials are included for review and submission reproducibility. The root
+Apache-2.0 software license does not by itself grant trademark, branding,
+figure, or manuscript-publication rights. Public use and the final arXiv
+license require approval from the applicable rights holders.
+
 ## External models and datasets
 
 Model weights, tokenizers, training corpora, and evaluation datasets are not

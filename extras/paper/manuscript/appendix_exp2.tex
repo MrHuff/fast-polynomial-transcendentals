@@ -1,0 +1,192 @@
+\subsection{Further \texttt{exp2} simplification in FlashAttention-4}
+\label{app:exp2-negative}
+
+FA4 decomposes $x$ into an integer and a fractional component. Its software
+path writes
+\begin{equation}
+    x=n+f,\qquad n=\lfloor x\rfloor,\quad f\in[0,1),\qquad
+    2^x=2^n 2^f,
+    \label{eq:exp2-reduction}
+\end{equation}
+then approximates only $2^f$. The integer scale $2^n$ is reconstructed from
+the exponent bits. All comparisons below retain FA4's FP32 lower clamp, range
+reduction, exponent reconstruction, masking rules, and mixed SFU/software
+routing. Only the fractional evaluator changes within the existing attention
+contract.
+
+\paragraph{Fits and invariants.}
+Online softmax repeatedly rescales its running row state when the row maximum
+changes. A fractional approximation must therefore satisfy $p(0)=1$,
+$p(1)=2$, and continuity between adjacent exponent intervals. These conditions
+leave only $p_1(f)=1+f$ for a single line. For a two-piece piecewise-linear
+(PWL2) approximation, we use the selection-free hinge form
+\begin{equation}
+    p_{\mathrm{PWL2}}(f)=1+af+2(1-a)\max(f-\tfrac12,0),
+    \qquad a=0.7980513010,
+    \label{eq:exp2-pwl2-safe}
+\end{equation}
+and for the quadratic control we use
+\begin{equation}
+    p_{\mathrm{D2}}(f)=1+af+(1-a)f^2,
+    \qquad a=0.6602339719.
+    \label{eq:exp2-d2-safe}
+\end{equation}
+The parameters in \cref{eq:exp2-pwl2-safe,eq:exp2-d2-safe} minimize sampled
+maximum relative error on a $1{,}000{,}001$-point grid. We also solve the same
+one-parameter families by least squares to expose the objective trade-off;
+least squares gives $a=0.7852775264$ for PWL2 and $a=0.6563658611$ for D2.
+For comparison, FA4's existing D3 is
+\begin{equation}
+    p_{\mathrm{D3}}(f)=1+0.6951461434f+0.2275643945f^2
+    +0.0771190897f^3.
+    \label{eq:exp2-d3-fa4}
+\end{equation}
+\Cref{tab:exp2-fits} compares both objectives with FA4's existing
+Sollya/minimax D3 polynomial. The D2 sampled-minimax fit is more accurate than
+PWL2 despite having the same two-FMA Horner depth because it needs no hinge.
+
+\begin{table}[H]
+\centering
+\reporttablefont
+\caption{Fractional $2^f$ fits on $f\in[0,1]$. Errors are measured in FP64 on
+a dense grid before coefficient quantization. ``Core'' excludes common range
+reduction and exponent reconstruction. D1, PWL2, and D2 preserve both
+endpoints exactly.}
+\label{tab:exp2-fits}
+\begin{tabularx}{\textwidth}{@{}llXrr@{}}
+\toprule
+\textbf{Family} & \textbf{Objective} & \textbf{Fractional core} &
+\shortstack{\textbf{Maximum relative}\\\textbf{error}} &
+\shortstack{\textbf{Root-mean-square}\\\textbf{relative error}} \\
+\midrule
+D1 & Endpoint constrained & 1 packed FMA & $6.148\times10^{-2}$ & $4.466\times10^{-2}$ \\
+PWL2 & Least squares & 2 packed FMAs + hinge & $1.526\times10^{-2}$ & $6.754\times10^{-3}$ \\
+PWL2 & Sampled minimax & 2 packed FMAs + hinge & $1.074\times10^{-2}$ & $7.174\times10^{-3}$ \\
+D2 & Least squares & 2 packed FMAs & $3.204\times10^{-3}$ & $1.987\times10^{-3}$ \\
+D2 & Sampled minimax & 2 packed FMAs & $2.679\times10^{-3}$ & $1.921\times10^{-3}$ \\
+FA4 D3 & Sollya/minimax & 3 packed FMAs; $p(1)=1.99983$ & $8.763\times10^{-5}$ & $6.029\times10^{-5}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The packed FP16 PWL2 coefficients are $a=0.7978515625$ and
+$2(1-a)=0.40380859375$. They preserve both endpoints exactly after rounding
+and have maximum relative error $1.132\times10^{-2}$. The handwritten core is
+11 inline PTX instructions, including two \texttt{fma.rn.f16x2}
+instructions. The D1 core needs only one packed FMA, but its fit error is much
+larger and it is no faster than D2 in causal FA4. The BF16 PWL2 core is also
+slower and less accurate than FP16.
+
+For online softmax, endpoint constraints are part of the approximation
+contract: $p(0)=1$ preserves the identity update and $p(1)=2$ preserves an
+integer exponent step. The accepted PWL2 comparison therefore includes only
+fits that satisfy both constraints after target-precision rounding. Pointwise
+error and endpoint invariants are both carried through the recurrent state
+transition.
+
+\paragraph{Isolated evaluator.}
+\Cref{tab:exp2-evidence} separates fractional-core timing from the complete
+exponential. The PWL2 fractional timing uses the reported coefficient set; the
+constrained fit has the same instruction shape and latency. Repeated
+register-resident arithmetic exposes the shorter fractional core, while
+L2-sized and HBM-sized working sets and the shared FP32 reduction and
+reconstruction change the measured balance. PWL2 replaces the saved FMA with
+hinge subtraction and maximum instructions.
+
+\begin{table}[t]
+\centering
+\reporttablefont
+\caption{The exp2 performance ladder on GB200. Entries are speedups over the
+matching native/all-SFU path. Full-exp rows include unchanged FP32 reduction
+and reconstruction; FA4 rows use identical causal routing. Values are rounded
+to three decimals, except the 8B optimizer-step probes, which are rounded to
+four decimals.}
+\label{tab:exp2-evidence}
+\begin{tabularx}{\textwidth}{@{}Xrrr@{}}
+\toprule
+\textbf{Measurement scope} & \textbf{FA4 D3} & \textbf{PWL2 FP16} &
+\textbf{D2 FP32} \\
+\midrule
+Fractional core, repeated compute & -- & 1.898x & -- \\
+Full $2^x$, repeated compute & 0.884x & 0.863x & -- \\
+Full $2^x$, 4 MiB input + 4 MiB output (L2-sized) & 0.995x & 1.002x & -- \\
+Full $2^x$, 256 MiB input + 256 MiB output (HBM-sized) & 0.995x & 0.990x & -- \\
+Causal FA4 forward & 1.012x & 1.010x & 1.012x \\
+Causal FA4 forward + backward & 1.001x & 1.005x & 1.006x \\
+80-step 8B optimizer, opposite-order geometric mean & -- & 1.0008x & 1.0030x \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+For the FA4 accuracy comparison, tensor-relative $L_2$ error is
+$\lVert y_{\mathrm{variant}}-y_{\mathrm{SFU}}\rVert_2 /
+\max(\lVert y_{\mathrm{SFU}}\rVert_2,10^{-30})$. We report the maximum over the
+attention output and the query, key, and value input gradients.
+
+\begin{table}[H]
+\centering
+\reporttablefont
+\caption{Maximum tensor-relative $L_2$ error against all-SFU FA4 on GB200.}
+\label{tab:exp2-accuracy}
+\begin{tabularx}{\textwidth}{@{}Xrrr@{}}
+\toprule
+\textbf{Measured quantity} & \textbf{FA4 D3} & \textbf{PWL2 FP16} &
+\textbf{D2 FP32} \\
+\midrule
+Maximum over output and input-gradient tensors & $8.641\times10^{-4}$ &
+$3.458\times10^{-3}$ & $2.019\times10^{-3}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{FA4 forward and backward.}
+The integrated target is FA4, which deliberately
+interleaves a minority of software evaluations with SFU work to balance two
+execution pipelines. The integrated rows of \cref{tab:exp2-evidence} compare
+D3, PWL2, and D2 under one routing contract. The causal Llama-8B GQA geometry is
+$B=1,S=4096,H_q=32,H_{kv}=8,D=128$, where $B$ is batch size, $S$ is sequence
+length, $H_q$ is the number of query heads, $H_{kv}$ is the number of key/value
+heads, and $D$ is head dimension. Timings use a requested 1300 MHz
+streaming-multiprocessor clock (1305 MHz observed), and speedups are medians of
+15 paired per-round
+ratios with 100 iterations per round. The matched rows route 33.3\% of
+eligible forward and 12.5\% of backward lane pairs through software. The
+all-SFU reference measures 0.2749~ms forward and 0.9174~ms forward plus
+backward; matched D3, PWL2, and D2 measure 0.2715/0.9169,
+0.2723/0.9127, and 0.2714/0.9113~ms, respectively.
+
+The compared paths differ in four relevant ways. FA4's D3 core uses three
+packed FP32 FMAs and runs concurrently with SFU work rather than replacing a
+serial native exponential. PWL2 replaces one FMA with a hinge subtraction and
+maximum, and its FP16 path adds conversions. Every software variant retains
+clamp, floor emulation, fractional extraction, and exponent-bit reconstruction.
+Only a minority of eligible lane pairs use software: final fragments and causal
+masked tiles remain on SFU, while query--key (QK) and probability--value (PV)
+matrix multiplication, online reductions, and synchronization are unchanged.
+
+\paragraph{8B model probes.}
+Opposite-order 80-step Llama-8B probes use the same sequence length and clock.
+PWL2 forward-plus-backward measures 1.0025x when the SFU control runs first and
+0.9990x in reverse order, for a 1.0008x geometric mean. D2 measures 0.9904x
+and 1.0158x. The opposed orders span a wider range than their geometric means
+in \cref{tab:exp2-evidence}. Final candidate-minus-control loss deltas range
+from -0.323 to -0.050 after 80 optimizer steps.
+
+\paragraph{Exposure analysis for further exp2 degree reduction.}
+The bottleneck can be quantified with Amdahl's law. If the isolated fractional
+core accelerates by $s=1.898$ but matched FA4 forward accelerates by only
+$S=1.010$, the effective serial share exposed to that optimization is
+\begin{equation}
+    p=\frac{1-S^{-1}}{1-s^{-1}}\approx 0.021.
+    \label{eq:exp2-amdahl}
+\end{equation}
+The measured saving is 2.6~$\mu$s in FA4 forward and 4.7~$\mu$s in
+forward plus backward. Even multiplying the latter by all 32 Llama layers
+gives approximately 0.15~ms against a roughly 275~ms optimizer step, about
+0.05\% of step time, consistent with the complete-step timing.
+
+Blackwell Ultra doubles \texttt{MUFU.EX2} throughput for key attention instructions and
+advertises up to 2x attention-layer compute over Blackwell
+\cite{nvidia2026blackwellultrasoftmax,aubrey2025blackwellultra}.
+
+\FloatBarrier

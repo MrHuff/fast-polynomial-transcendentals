@@ -48,7 +48,7 @@
           "outputs/sollya_device_bf16.generated.json"
         ],
         "substitutions": {},
-        "notes": "The caller-selected outputs preserve the checked-in historical header and evidence artifact."
+        "notes": "The caller-selected outputs preserve the checked-in historical header and evidence artifact. This is a host NumPy comparison, not device error: current header literals are evaluated without an explicit BF16 round while generated Sollya coefficients are BF16-rounded, and the inputs do not establish endpoint-constrained least-squares lineage for every row."
       },
       "artifact": "autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json"
     },
@@ -864,6 +864,154 @@
         "notes": "Checks the compiled native and polynomial sine/cosine paths for their expected SASS instruction families and hashes the exact extension, source, audit script, and cuobjdump binary. The extension hash identifies the audited binary; no build receipt proves that it was compiled from the recorded source revision."
       },
       "protocol": "src/sfu_repro/rope/README.md"
+    },
+    {
+      "id": "paper-paired-loss-figure",
+      "status": "runnable",
+      "command": ["python", "extras/paper/plot_paired_loss_curves.py", "--data-path", "evidence/report-data/b1_b4_paired_loss_curves.csv", "--input-provenance", "evidence/report-data/b1_b4_paired_loss_curves.provenance.json", "--output-path", "outputs/paper/b1_b4_paired_loss_curves.pdf", "--output-provenance", "outputs/paper/b1_b4_paired_loss_curves.figure.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "extras/paper/plot_paired_loss_curves.py",
+          "evidence/report-data/b1_b4_paired_loss_curves.csv",
+          "evidence/report-data/b1_b4_paired_loss_curves.provenance.json"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "Matplotlib", "NumPy", "pandas"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "paper-paired-loss-figure",
+        "output_class": "derived-artifact",
+        "outputs": [
+          "outputs/paper/b1_b4_paired_loss_curves.pdf",
+          "outputs/paper/b1_b4_paired_loss_curves.figure.json"
+        ],
+        "substitutions": {},
+        "notes": "Reconstructs the current paper layout from SHA-bound local samples, including common horizons and final-25-billion-token insets; it neither contacts W&B nor reruns training."
+      },
+      "protocol": "extras/paper/README.md"
+    },
+    {
+      "id": "paper-method-figures",
+      "status": "runnable",
+      "command": ["python", "extras/paper/generate_method_figures.py", "--coefficients", "autonumerics_zero/cuda_benchmarks/analysis_results/all_degree_coefficients_bf16.json", "--output-dir", "outputs/paper/method", "--receipt", "outputs/paper/method/method_figures.receipt.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "extras/paper/generate_method_figures.py",
+          "autonumerics_zero/cuda_benchmarks/analysis_results/all_degree_coefficients_bf16.json"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "Matplotlib", "NumPy"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "paper-method-figure-generation",
+        "output_class": "derived-artifact",
+        "outputs": [
+          "outputs/paper/method",
+          "outputs/paper/method/symmetry_reduction.pdf",
+          "outputs/paper/method/constrained_fit_replay.pdf",
+          "outputs/paper/method/method_figures.receipt.json"
+        ],
+        "substitutions": {},
+        "notes": "Deterministic offline reconstruction from the checked-in coefficient sweep. The packed-FMA curve is a software rounding replay."
+      },
+      "protocol": "extras/paper/TOOLING.md"
+    },
+    {
+      "id": "paper-accuracy-figures",
+      "status": "hardware-gated",
+      "hardware": "CUDA GPU and a compiled sfu-spline-ops extension",
+      "command": ["python", "extras/paper/generate_accuracy_figures.py", "--extension-dir", "autonumerics_zero/spline_ops", "--output-dir", "outputs/paper/accuracy", "--receipt", "outputs/paper/accuracy/accuracy_figures.receipt.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "extras/paper/generate_accuracy_figures.py",
+          "autonumerics_zero/spline_ops/spline_kernels_bf16.cu",
+          "autonumerics_zero/spline_ops/spline_ops.cpp"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "Matplotlib", "NumPy", "PyTorch with CUDA", "built sfu-spline-ops"],
+        "hardware": ["CUDA GPU supported by the selected extension build"],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "paper-kernel-accuracy-figures",
+        "output_class": "new-measurement",
+        "outputs": [
+          "outputs/paper/accuracy",
+          "outputs/paper/accuracy/sigmoid_fwd_accuracy.pdf",
+          "outputs/paper/accuracy/tanh_fwd_accuracy.pdf",
+          "outputs/paper/accuracy/swish_fwd_accuracy.pdf",
+          "outputs/paper/accuracy/sigmoid_bwd_accuracy.pdf",
+          "outputs/paper/accuracy/tanh_bwd_accuracy.pdf",
+          "outputs/paper/accuracy/swish_bwd_accuracy.pdf",
+          "outputs/paper/accuracy/accuracy_figures.receipt.json"
+        ],
+        "substitutions": {},
+        "notes": "Measures the explicitly loaded compiled extension and hashes its binary and available sources. It is a new measurement, not historical runtime attestation."
+      },
+      "protocol": "extras/paper/TOOLING.md"
+    },
+    {
+      "id": "paper-sollya-comparison",
+      "status": "runnable",
+      "command": ["python", "extras/paper/generate_sollya_comparison.py", "--bf16-input", "autonumerics_zero/cuda_benchmarks/analysis_results/all_degree_coefficients_bf16.json", "--fp16-input", "autonumerics_zero/cuda_benchmarks/analysis_results/all_degree_coefficients.json", "--output", "outputs/paper/sollya_comparison.json", "--tex-output", "outputs/paper/sollya_comparison.tex", "--receipt", "outputs/paper/sollya_comparison.receipt.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "extras/paper/generate_sollya_comparison.py",
+          "autonumerics_zero/cuda_benchmarks/analysis_results/all_degree_coefficients_bf16.json",
+          "autonumerics_zero/cuda_benchmarks/analysis_results/all_degree_coefficients.json"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+", "NumPy", "Sollya"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "paper-sollya-coefficient-control",
+        "output_class": "derived-artifact",
+        "outputs": [
+          "outputs/paper/sollya_comparison.json",
+          "outputs/paper/sollya_comparison.tex",
+          "outputs/paper/sollya_comparison.receipt.json"
+        ],
+        "substitutions": {},
+        "notes": "Auxiliary sensitivity analysis only, not the manuscript Table 2 source. Its selected-cell differences come from the earlier sigmoid D3 fit/clamp, absence of the later tanh D4 device refit, a direct SiLU fit on the auxiliary Sollya side rather than composition of both table columns from sigmoid, and FP16/11-bit rather than BF16/8-bit GELU controls. Separately, the retained table has asymmetric BF16 handling, host rather than device error, and incomplete endpoint-constrained least-squares lineage."
+      },
+      "protocol": "extras/paper/TOOLING.md"
+    },
+    {
+      "id": "paper-table-evidence-audit",
+      "status": "runnable",
+      "command": ["python", "extras/paper/check_paper_tables.py", "--claims", "extras/paper/paper_table_claims.json", "--function-comparison", "autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json", "--function-lineage", "extras/paper/function_table_lineage.json", "--allow-review-required", "--evidence-dir", "evidence/report-data", "--output", "outputs/paper/table_audit.json"],
+      "prerequisites": {
+        "repository_paths": [
+          "extras/paper/check_paper_tables.py",
+          "extras/paper/paper_table_claims.json",
+          "extras/paper/function_table_lineage.json",
+          "extras/paper/manuscript/main.tex",
+          "autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json",
+          "evidence/report-data/b1_b4_100_iteration_phase_probes_gb200.json",
+          "evidence/report-data/b1_b4_full_model_100step_gb200.json",
+          "evidence/report-data/b4_27a4b_local_100step_gb200.json",
+          "evidence/report-data/sollya_eval_results.csv",
+          "evidence/report-data/b1_b4_paired_loss_curves.csv"
+        ],
+        "generated_inputs": [],
+        "software": ["Python 3.11+"],
+        "hardware": [],
+        "external_assets": []
+      },
+      "workflow": {
+        "kind": "paper-table-evidence-audit",
+        "output_class": "source-bound-verification",
+        "outputs": ["outputs/paper/table_audit.json"],
+        "substitutions": {},
+        "notes": "Validates numeric source-to-typeset consistency for all five evidence-backed table groups and validates the SHA-bound or equivalently embedded Table 2 arithmetic description. The explicit review acknowledgement preserves unresolved Table 2 scientific-semantic items in the audit and never permits numeric or lineage mismatches. Identifier columns are not loaded into derived rows."
+      },
+      "protocol": "extras/paper/TOOLING.md"
     }
   ]
 }

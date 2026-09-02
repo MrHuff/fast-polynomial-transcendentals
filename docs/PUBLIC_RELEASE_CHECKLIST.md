@@ -79,6 +79,17 @@ commit and its complete Git history.
 
 - [ ] Validate every paper number against the exact released evidence file and
       record its hash.
+- [ ] Verify that every numeric Table 2 cell remains bound to the retained
+      deployed-header-shaped JSON, not the auxiliary coefficient-sweep control
+      whose selected rows differ in seven rounded cells.
+- [ ] Resolve the Table 2 semantic review in
+      `extras/paper/FUNCTION_TABLE_REVIEW.md`: use symmetric and explicit
+      coefficient quantization, label host versus device arithmetic correctly,
+      and substantiate the fitting method for every row before retaining a
+      column-wide endpoint-constrained least-squares label.
+- [ ] Verify the 21-file manuscript allowlist and SHA-256 manifest, and obtain
+      explicit approval for the Graphcore style, symbol, figures, and selected
+      arXiv manuscript license.
 - [ ] Mark historical dirty-worktree, reconstructed-command,
       source-derived, and unbound artifacts with their actual provenance class.
 - [ ] Verify that the standalone implementation is tested as a new

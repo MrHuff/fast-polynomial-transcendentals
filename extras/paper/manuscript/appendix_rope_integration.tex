@@ -1,0 +1,15 @@
+The fused experiment reads contiguous FP16 Q in $[B,S,H_q,D]$ and K in
+$[B,S,H_{kv},D]$, where $B$ is batch size, $S$ is sequence length, $H_q$ is the
+number of query heads, $H_{kv}$ is the number of key/value heads, and $D$ is
+head dimension. It computes four sine/cosine pairs once per thread, reuses them
+across the corresponding heads, applies the packed complex rotation, and writes
+the transposed layouts $[B,H_q,S,D]$ and $[B,H_{kv},S,D]$. Cached-table,
+on-the-fly native-SFU, and on-the-fly polynomial variants share the same
+rotation and memory instructions.
+
+Inspection with NVIDIA's binary utilities can distinguish the polynomial
+instruction path from SFU, FP32-FMA, or packed-BF16 fallbacks
+\cite{nvidia2026binaryutilities}. Query/key movement, packed complex rotation,
+transpose, and store remain shared across variants.
+
+\FloatBarrier

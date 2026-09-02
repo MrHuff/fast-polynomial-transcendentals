@@ -10,7 +10,8 @@ This script:
 2. Uses Sollya `fpminimax` to fit matching polynomial structures at the same
    degree and clamp.
 3. Writes a new BF16 device header with Sollya coefficients.
-4. Emits a JSON file with current-vs-Sollya coefficients and runtime max error.
+4. Emits a JSON file with current-vs-Sollya coefficients and a host-side
+   coefficient-control error calculation.
 """
 
 from __future__ import annotations
@@ -56,6 +57,26 @@ OUT_JSON = (
     / "analysis_results"
     / "sollya_device_bf16.json"
 )
+ERROR_GRID_POINTS = 20_001
+ERROR_MEASUREMENT = {
+    "metric": "maximum absolute error",
+    "evaluation": "host NumPy real-arithmetic Horner reconstruction",
+    "grid": ("20,001 uniformly spaced points on each row's closed interval [-Lc, Lc]"),
+    "current_coefficients": (
+        "decimal literals parsed from the deployed CUDA header and evaluated "
+        "directly without BF16 pre-rounding"
+    ),
+    "sollya_coefficients": (
+        "Sollya fpminimax coefficients constrained to 8-bit precision and cast "
+        "to BF16 before host evaluation"
+    ),
+    "intermediate_rounding": (
+        "none; target-precision intermediate rounding is not replayed"
+    ),
+    "device_measurement": (
+        "not a device measurement; this is a host-side coefficient control"
+    ),
+}
 
 
 def bf16_round(value: float) -> float:
@@ -300,7 +321,7 @@ def max_error(
     clamp: float,
     target: Callable[[np.ndarray], np.ndarray],
 ) -> float:
-    xs = np.linspace(-clamp, clamp, 20001)
+    xs = np.linspace(-clamp, clamp, ERROR_GRID_POINTS)
     truth = target(xs)
     if kind == "centered_odd":
         approx = eval_centered_odd(xs, coeffs, clamp)
@@ -494,7 +515,10 @@ def generate(
     provenance: dict[str, object] | None = None,
 ) -> dict[str, object]:
     current_text = current_header.read_text(encoding="utf-8")
-    results: dict[str, object] = {"families": {}}
+    results: dict[str, object] = {
+        "measurement": dict(ERROR_MEASUREMENT),
+        "families": {},
+    }
     emitted_sections = [
         "// spline_structs_sollya_bf16.cuh — BF16 Sollya fpminimax activation structs",
         "// AUTO-GENERATED with the same runtime clamps and evaluation shapes as spline_structs_odd_bf16.cuh",

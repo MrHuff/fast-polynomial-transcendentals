@@ -72,7 +72,7 @@ FlashAttention-4 code and Python packages retain their own licenses.
 | `b4_27a4b_local_100step_gb200.json` | Root `f0d890498ec338ff5a1af682d1b73cc9ba83a416`; low-bits `89694ba4e53300d71fad5672f3a15a5f533317b5`; command embedded in artifact | Distributed harness had uncommitted changes; only aggregate data and raw-log hashes survive |
 | `sollya_eval_results.csv` and `open_weight_eval_protocol.json` | Root `cdc11310a522b2b3ac7230fbba0efc7e7022e20d`; low-bits `393b69e2993ef00c812dfc87ac5f93c146159f45` | Protocol is source-derived, not runtime-attested; two Qwen checkpoint revisions, task-dataset commits, sampled few-shot identities, raw per-model result shards, and the complete runtime are absent |
 | `b1_b4_paired_loss_curves.csv` and provenance JSON | Materialized sampled histories and source snapshot metadata | Original launch manifests, complete configs, checkpoint hashes, seeds, and data-order proof are incomplete or absent |
-| `sollya_device_bf16.json` | Retained fitting comparison artifact | Producing environment and immutable source binding are not fully recorded |
+| `sollya_device_bf16.json` | Retained host-arithmetic comparison artifact; all selected manuscript cells can be read from it | Producing environment and immutable source binding are not fully recorded; current header literals are not BF16-rounded by the producer while Sollya coefficients are, and per-row fitting-method lineage is incomplete |
 | Fractional-`exp2` JSON artifacts | Retained fits and GB200 measurements | Most artifacts are not bound to an immutable clean source tree; one integrated artifact records requested and observed clocks |
 | `b5_exp2_pwl2_safe_8b_probe_fwd_bwd_gb200.json` and `b5_exp2_d2_safe_8b_probe_fwd_bwd_gb200.json` | Retained Llama-8B probe aggregates and routed schedules | The proprietary `gc-training` plumbing, historical initialization, raw logs, and immutable source binding were not retained |
 
@@ -132,6 +132,15 @@ CUDA kernels use packed BF16 fused multiply-add instructions with one rounding.
 Device-kernel accuracy outputs are therefore the evidence for deployed error;
 the fitting replay must not be described as an instruction-exact emulator.
 
+The retained Table 2 comparison has a separate arithmetic boundary. Its
+producer parses current deployed-header literals as host floats, explicitly
+BF16-rounds the Sollya coefficients, and evaluates both with NumPy
+real-arithmetic Horner chains on a 20,001-point grid. It neither applies the
+runtime BF16 conversion to the current literals nor executes the packed CUDA
+path. The retained artifact and header also do not establish
+endpoint-constrained least-squares provenance for every selected current row.
+See the [function-table review](../extras/paper/FUNCTION_TABLE_REVIEW.md).
+
 The FP16 ERF/GELU fitter was recovered from
 `low-precision-functions` commit
 `eb9d1aac9c0d9a2fb5f375f8f35c2c3e1603d872`. Its
@@ -188,6 +197,43 @@ those checks, joins quality and throughput JSON by immutable model revision and
 variant, and requires the complete declared task/phase set. Its CSV and
 Markdown outputs summarize new public measurements only; they do not recover
 the missing inputs or raw outputs behind the historical paper table.
+
+## Paper-extra provenance
+
+`extras/paper/manuscript/SOURCE_MANIFEST.sha256` binds the complete 21-file
+arXiv upload set. The source was selected from the current manuscript rather
+than from an internal-review archive. Public repository paths replace local
+recovery paths, and proprietary fonts, raw job metadata, compiled output, and
+review bundles are excluded. The current manuscript PDFs are kept inside this
+self-contained source set; they are distinct from older historical-evidence
+copies where the paper's presentation has changed.
+
+The paper generators consume explicit local inputs and write caller-selected
+outputs with file hashes. The paired-loss generator reads only the five
+scientific CSV columns required by the figure and does not import service
+clients. The method figures are CPU reconstructions. Accuracy figures measure
+the loaded CUDA extension and therefore create new evidence. The table claim
+map binds the packaged `main.tex` by SHA-256. The checker loads only fields
+used in the manuscript and does not copy identifier columns into its report.
+
+All five table groups reproduce numerically from released evidence at the
+manuscript's stated rounding: function error, component integration,
+complete-model timing, same-checkpoint evaluation, and paired pre-training.
+For the function table, this is source-to-typeset consistency rather than
+validation of the manuscript's arithmetic or method labels. It uses the
+retained deployed-header comparison in
+`autonumerics_zero/cuda_benchmarks/analysis_results/sollya_device_bf16.json`.
+The separate `extras/paper/generate_sollya_comparison.py` D3--D6 control is
+auxiliary. Its seven selected rounded-cell differences have four causes: an
+earlier sigmoid D3 fit with clamp 4.75 instead of the later deployed fit with
+clamp 6.0; the absence of the later tanh D4 device refit from the sweep; a
+direct SiLU-residual fit on the auxiliary Sollya side instead of composing
+both columns from sigmoid; and FP16/11-bit GELU controls instead of the
+retained BF16/8-bit controls. These workflow
+differences are separate from the retained table's asymmetric coefficient
+rounding, host-versus-device arithmetic, and incomplete per-row fitter-lineage
+review. The machine-readable audit is
+`extras/paper/function_table_lineage.json`.
 
 ## Producing new evidence
 

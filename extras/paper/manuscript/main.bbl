@@ -1,0 +1,202 @@
+\begin{thebibliography}{25}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Alexandridis et~al.(2025)Alexandridis, Titopoulos, and
+  Dimitrakopoulos]{alexandridis2025lowcostflashattention}
+Kosmas Alexandridis, Vasileios Titopoulos, and Giorgos Dimitrakopoulos.
+\newblock Low-cost flashattention with fused exponential and multiplication
+  hardware operators, 2025.
+\newblock URL \url{https://arxiv.org/abs/2505.14314}.
+
+\bibitem[Alvarez et~al.(2026)Alvarez, Mehta, and
+  Ghodsian]{alvarez2026rubinarchitecture}
+Eduardo Alvarez, Vishal Mehta, and Farshad Ghodsian.
+\newblock Inside {NVIDIA Rubin GPU} architecture: Powering the era of agentic
+  {AI}, 2026.
+\newblock URL
+  \url{https://developer.nvidia.com/blog/inside-nvidia-rubin-gpu-architecture-powering-the-era-of-agentic-ai/}.
+\newblock NVIDIA Technical Blog.
+
+\bibitem[Aubrey and Stam(2025)]{aubrey2025blackwellultra}
+Kyle Aubrey and Nick Stam.
+\newblock Inside {NVIDIA Blackwell Ultra}: The chip powering the {AI} factory
+  era, 2025.
+\newblock URL
+  \url{https://developer.nvidia.com/blog/inside-nvidia-blackwell-ultra-the-chip-powering-the-ai-factory-era/}.
+\newblock NVIDIA Technical Blog.
+
+\bibitem[Bisk et~al.(2020)Bisk, Zellers, Bras, Gao, and Choi]{bisk2020piqa}
+Yonatan Bisk, Rowan Zellers, Ronan~Le Bras, Jianfeng Gao, and Yejin Choi.
+\newblock {PIQA}: Reasoning about physical commonsense in natural language.
+\newblock In \emph{Proceedings of the AAAI Conference on Artificial
+  Intelligence}, 2020.
+\newblock URL \url{https://arxiv.org/abs/1911.11641}.
+
+\bibitem[Chevillard et~al.(2010)Chevillard, Joldes, and Lauter]{sollya}
+Sylvain Chevillard, Mioara Joldes, and Christoph Lauter.
+\newblock Sollya: An environment for the development of numerical codes.
+\newblock In \emph{Mathematical Software -- ICMS 2010}, pages 28--31. Springer,
+  2010.
+\newblock URL \url{https://www.sollya.org/}.
+
+\bibitem[Clark et~al.(2018)Clark, Cowhey, Etzioni, Khot, Sabharwal, Schoenick,
+  and Tafjord]{clark2018arc}
+Peter Clark, Isaac Cowhey, Oren Etzioni, Tushar Khot, Ashish Sabharwal, Carissa
+  Schoenick, and Oyvind Tafjord.
+\newblock Think you have solved question answering? try {ARC}, the {AI2}
+  reasoning challenge, 2018.
+\newblock URL \url{https://arxiv.org/abs/1803.05457}.
+
+\bibitem[Cobbe et~al.(2021)Cobbe, Kosaraju, Bavarian, Chen, Jun, Kaiser,
+  Plappert, Tworek, Hilton, Nakano, Hesse, and Schulman]{cobbe2021gsm8k}
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz
+  Kaiser, Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano,
+  Christopher Hesse, and John Schulman.
+\newblock Training verifiers to solve math word problems, 2021.
+\newblock URL \url{https://arxiv.org/abs/2110.14168}.
+
+\bibitem[{DeepSeek-AI} et~al.(2024){DeepSeek-AI}, Liu, Feng, Xue, Wang, Wu, Lu,
+  Zhao, Deng, Zhang, Ruan, Dai, et~al.]{deepseekai2024deepseekv3}
+{DeepSeek-AI}, Aixin Liu, Bei Feng, Bing Xue, Bingxuan Wang, Bochao Wu, Chengda
+  Lu, Chenggang Zhao, Chengqi Deng, Chenyu Zhang, Chong Ruan, Damai Dai, et~al.
+\newblock Deepseek-v3 technical report, 2024.
+\newblock URL \url{https://arxiv.org/abs/2412.19437}.
+
+\bibitem[{Gemma Team} et~al.(2024){Gemma Team}, Riviere, Pathak, Sessa, Hardin,
+  Bhupatiraju, Hussenot, Mesnard, Shahriari, Rame, Ferret, Liu,
+  et~al.]{gemmateam2024gemma2}
+{Gemma Team}, Morgane Riviere, Shreya Pathak, Pier~Giuseppe Sessa, Cassidy
+  Hardin, Surya Bhupatiraju, Leonard Hussenot, Thomas Mesnard, Bobak Shahriari,
+  Alexandre Rame, Johan Ferret, Peter Liu, et~al.
+\newblock Gemma 2: Improving open language models at a practical size, 2024.
+\newblock URL \url{https://arxiv.org/abs/2408.00118}.
+
+\bibitem[Georganas et~al.(2022)Georganas, Kalamkar, Avancha, Adelman, Aggarwal,
+  Anderson, Breuer, Bruestle, Chaudhary, Kundu, Kutnick, Laub, Md, Misra,
+  Mohanty, Pabst, Retford, Ziv, and Heinecke]{georganas2022tensor}
+Evangelos Georganas, Dhiraj Kalamkar, Sasikanth Avancha, Menachem Adelman,
+  Deepti Aggarwal, Cristina Anderson, Alexander Breuer, Jeremy Bruestle,
+  Narendra Chaudhary, Abhisek Kundu, Denise Kutnick, Frank Laub, Vasimuddin Md,
+  Sanchit Misra, Ramanarayan Mohanty, Hans Pabst, Brian Retford, Barukh Ziv,
+  and Alexander Heinecke.
+\newblock Tensor processing primitives: A programming abstraction for
+  efficiency and portability in deep learning and hpc workloads.
+\newblock \emph{Frontiers in Applied Mathematics and Statistics}, 8, 2022.
+\newblock \doi{10.3389/fams.2022.826269}.
+\newblock URL \url{https://doi.org/10.3389/fams.2022.826269}.
+
+\bibitem[Hendrycks et~al.(2021)Hendrycks, Burns, Basart, Zou, Mazeika, Song,
+  and Steinhardt]{hendrycks2021mmlu}
+Dan Hendrycks, Collin Burns, Steven Basart, Andy Zou, Mantas Mazeika, Dawn
+  Song, and Jacob Steinhardt.
+\newblock Measuring massive multitask language understanding.
+\newblock In \emph{International Conference on Learning Representations}, 2021.
+\newblock URL \url{https://arxiv.org/abs/2009.03300}.
+
+\bibitem[Kundu et~al.(2019)Kundu, Heinecke, Kalamkar, Srinivasan, Qin,
+  Mellempudi, Das, Banerjee, Kaul, and Dubey]{kundu2019ktanh}
+Abhisek Kundu, Alex Heinecke, Dhiraj Kalamkar, Sudarshan Srinivasan, Eric~C.
+  Qin, Naveen~K. Mellempudi, Dipankar Das, Kunal Banerjee, Bharat Kaul, and
+  Pradeep Dubey.
+\newblock {K-TanH}: Efficient tanh for deep learning, 2019.
+\newblock URL \url{https://arxiv.org/abs/1909.07729}.
+
+\bibitem[Li et~al.(2026)Li, Zhurkevich, Agarwalla, Lee, and
+  Anders]{nvidia2026blackwellultrasoftmax}
+Jamie Li, Alexander Zhurkevich, Vedaanta Agarwalla, Seonghee Lee, and Roman
+  Anders.
+\newblock Making softmax more efficient with {NVIDIA Blackwell Ultra}, 2026.
+\newblock URL
+  \url{https://developer.nvidia.com/blog/making-softmax-more-efficient-with-nvidia-blackwell-ultra/}.
+\newblock NVIDIA Technical Blog.
+
+\bibitem[Lim and Nagarakatte(2021)]{lim2021rlibm32}
+Jay~P. Lim and Santosh Nagarakatte.
+\newblock {RLIBM-32}: High performance correctly rounded math libraries for
+  32-bit floating point representations, 2021.
+\newblock URL \url{https://arxiv.org/abs/2104.04043}.
+
+\bibitem[Lin et~al.(2022)Lin, Hilton, and Evans]{lin2022truthfulqa}
+Stephanie Lin, Jacob Hilton, and Owain Evans.
+\newblock {TruthfulQA}: Measuring how models mimic human falsehoods.
+\newblock In \emph{Proceedings of the 60th Annual Meeting of the Association
+  for Computational Linguistics}, 2022.
+\newblock URL \url{https://arxiv.org/abs/2109.07958}.
+
+\bibitem[Merity et~al.(2017)Merity, Xiong, Bradbury, and
+  Socher]{merity2017wikitext}
+Stephen Merity, Caiming Xiong, James Bradbury, and Richard Socher.
+\newblock Pointer sentinel mixture models.
+\newblock In \emph{International Conference on Learning Representations}, 2017.
+\newblock URL \url{https://arxiv.org/abs/1609.07843}.
+
+\bibitem[NVI(2026{\natexlab{a}})]{nvidia2026binaryutilities}
+\emph{{CUDA Binary Utilities} 13.0}.
+\newblock NVIDIA Corporation, 2026{\natexlab{a}}.
+\newblock URL
+  \url{https://docs.nvidia.com/cuda/archive/13.0.2/cuda-binary-utilities/index.html}.
+
+\bibitem[NVI(2026{\natexlab{b}})]{nvidia2026ptxisa}
+\emph{{PTX ISA} 9.0}.
+\newblock NVIDIA Corporation, 2026{\natexlab{b}}.
+\newblock URL
+  \url{https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html}.
+
+\bibitem[Ramapuram et~al.(2024)Ramapuram, Danieli, Dhekane, Weers, Busbridge,
+  Ablin, Likhomanenko, Digani, Gu, Shidani, and
+  Webb]{ramapuram2024sigmoidattention}
+Jason Ramapuram, Federico Danieli, Eeshan Dhekane, Floris Weers, Dan Busbridge,
+  Pierre Ablin, Tatiana Likhomanenko, Jagrit Digani, Zijin Gu, Amitis Shidani,
+  and Russ Webb.
+\newblock Theory, analysis, and best practices for sigmoid self-attention,
+  2024.
+\newblock URL \url{https://arxiv.org/abs/2409.04431}.
+
+\bibitem[Real et~al.(2023)Real, Chen, Rossini, de~Souza, Garg, Verghese,
+  Firsching, Le, Cubuk, and Park]{real2023autonumerics}
+Esteban Real, Yao Chen, Mirko Rossini, Connal de~Souza, Manav Garg, Akhil
+  Verghese, Moritz Firsching, Quoc~V. Le, Ekin~Dogus Cubuk, and David~H. Park.
+\newblock Autonumerics-zero: Automated discovery of state-of-the-art
+  mathematical functions, 2023.
+\newblock URL \url{https://arxiv.org/abs/2312.08472}.
+
+\bibitem[Sakaguchi et~al.(2020)Sakaguchi, Bras, Bhagavatula, and
+  Choi]{sakaguchi2020winogrande}
+Keisuke Sakaguchi, Ronan~Le Bras, Chandra Bhagavatula, and Yejin Choi.
+\newblock Winogrande: An adversarial winograd schema challenge at scale.
+\newblock In \emph{Proceedings of the AAAI Conference on Artificial
+  Intelligence}, 2020.
+\newblock URL \url{https://arxiv.org/abs/1907.10641}.
+
+\bibitem[Shazeer(2020)]{shazeer2020glu}
+Noam Shazeer.
+\newblock {GLU} variants improve transformer, 2020.
+\newblock URL \url{https://arxiv.org/abs/2002.05202}.
+
+\bibitem[Yu et~al.(2026)Yu, Han, Hu, Xu, Jiang, and Yang]{yu2026nli}
+Jiangyong Yu, Xiaomeng Han, Xing Hu, Chen Xu, Zhe Jiang, and Dawei Yang.
+\newblock {NLI}: Non-uniform linear interpolation approximation of nonlinear
+  operations for efficient {LLM} inference, 2026.
+\newblock URL \url{https://arxiv.org/abs/2602.02988}.
+
+\bibitem[Zadouri et~al.(2026)Zadouri, Hoehnerbach, Shah, Liu, Thakkar, and
+  Dao]{zadouri2026flashattention4}
+Ted Zadouri, Markus Hoehnerbach, Jay Shah, Timmy Liu, Vijay Thakkar, and Tri
+  Dao.
+\newblock Flashattention-4: Algorithm and kernel pipelining co-design for
+  asymmetric hardware scaling, 2026.
+\newblock URL \url{https://arxiv.org/abs/2603.05451}.
+
+\bibitem[Zellers et~al.(2019)Zellers, Holtzman, Bisk, Farhadi, and
+  Choi]{zellers2019hellaswag}
+Rowan Zellers, Ari Holtzman, Yonatan Bisk, Ali Farhadi, and Yejin Choi.
+\newblock Hellaswag: Can a machine really finish your sentence?
+\newblock In \emph{Proceedings of the 57th Annual Meeting of the Association
+  for Computational Linguistics}, 2019.
+\newblock URL \url{https://arxiv.org/abs/1905.07830}.
+
+\end{thebibliography}

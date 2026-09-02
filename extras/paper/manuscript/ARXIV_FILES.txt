@@ -1,0 +1,22 @@
+# Paths are relative to this directory. Keep the arXiv upload self-contained and minimal.
+00README.json
+main.tex
+appendix_extended_numerics.tex
+appendix_exp2.tex
+appendix_rope_fit.tex
+appendix_rope_integration.tex
+appendix_lessons.tex
+appendix_reproducibility.tex
+main.bib
+main.bbl
+graphcore_report.sty
+assets/graphcore-symbol.png
+figures/method/symmetry_reduction.pdf
+figures/method/constrained_fit_replay.pdf
+figures/accuracy/sigmoid_fwd_accuracy.pdf
+figures/accuracy/tanh_fwd_accuracy.pdf
+figures/accuracy/swish_fwd_accuracy.pdf
+figures/accuracy/sigmoid_bwd_accuracy.pdf
+figures/accuracy/tanh_bwd_accuracy.pdf
+figures/accuracy/swish_bwd_accuracy.pdf
+figures/training/b1_b4_paired_loss_curves.pdf

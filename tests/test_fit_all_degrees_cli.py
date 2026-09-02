@@ -101,6 +101,28 @@ def test_sollya_generator_hashes_the_generated_header(
     )
 
     expected = hashlib.sha256(generated.read_bytes()).hexdigest()
+    measurement = document["measurement"]
+    assert set(measurement) == {
+        "metric",
+        "evaluation",
+        "grid",
+        "current_coefficients",
+        "sollya_coefficients",
+        "intermediate_rounding",
+        "device_measurement",
+    }
+    assert all(isinstance(value, str) for value in measurement.values())
+    assert measurement["metric"] == "maximum absolute error"
+    assert "host NumPy" in measurement["evaluation"]
+    assert "real-arithmetic Horner" in measurement["evaluation"]
+    assert "20,001 uniformly spaced points" in measurement["grid"]
+    assert "[-Lc, Lc]" in measurement["grid"]
+    assert "deployed CUDA header" in measurement["current_coefficients"]
+    assert "without BF16 pre-rounding" in measurement["current_coefficients"]
+    assert "8-bit precision" in measurement["sollya_coefficients"]
+    assert "cast to BF16" in measurement["sollya_coefficients"]
+    assert "not replayed" in measurement["intermediate_rounding"]
+    assert "not a device measurement" in measurement["device_measurement"]
     assert document["_provenance"]["generated_header_sha256"] == expected
     assert (
         json.loads(result.read_text(encoding="utf-8"))["_provenance"][

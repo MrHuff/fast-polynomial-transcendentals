@@ -140,6 +140,15 @@ python autonumerics_zero/spline_ops/generate_sollya_structs_bf16.py \
   --json-out outputs/sollya_device_bf16.generated.json
 ```
 
+This produces a fresh host-arithmetic comparison with the retained JSON shape;
+it is not a device-error run. The producer parses current deployed-header
+literals without first BF16-rounding them, explicitly BF16-rounds Sollya
+coefficients, and evaluates both sides with NumPy real arithmetic. The source
+artifact also does not establish endpoint-constrained least-squares lineage
+for every current row. See the
+[function-table review](../extras/paper/FUNCTION_TABLE_REVIEW.md) before using
+this output to interpret manuscript Table 2.
+
 `fit_all_degrees_bf16.py` deliberately preserves the historical fit-selection
 surrogate: it rounds the multiply and add of each Horner stage separately. The
 deployed CUDA kernels use packed `__hfma2`, which rounds a fused multiply-add
@@ -746,6 +755,90 @@ repository omits the original distributed launcher, full configuration,
 datasets, checkpoints, and the information needed to prove identical
 initialization and data order. No command in this repository exactly repeats
 the reported 100B-token pre-training runs.
+
+## Rebuild the paper extras
+
+`extras/paper/` contains a local-input-only reconstruction layer for the
+paper-facing artifacts. The exact paired-loss layout, including common token
+horizons and final-25-billion-token insets, is generated with:
+
+```bash
+python extras/paper/plot_paired_loss_curves.py \
+  --data-path evidence/report-data/b1_b4_paired_loss_curves.csv \
+  --input-provenance evidence/report-data/b1_b4_paired_loss_curves.provenance.json \
+  --output-path outputs/paper/b1_b4_paired_loss_curves.pdf \
+  --output-provenance outputs/paper/b1_b4_paired_loss_curves.figure.json
+```
+
+The method figures are an offline CPU transformation. The six accuracy plots
+are fresh measurements of the explicitly loaded CUDA extension:
+
+```bash
+python extras/paper/generate_method_figures.py \
+  --coefficients autonumerics_zero/cuda_benchmarks/analysis_results/all_degree_coefficients_bf16.json \
+  --output-dir outputs/paper/method
+
+python extras/paper/generate_accuracy_figures.py \
+  --extension-dir autonumerics_zero/spline_ops \
+  --output-dir outputs/paper/accuracy
+```
+
+Generate a fresh deployed-header-shaped Sollya control and audit the
+quantitative tables:
+
+```bash
+python autonumerics_zero/spline_ops/generate_sollya_structs_bf16.py \
+  --current-header autonumerics_zero/spline_ops/spline_structs_odd_bf16.cuh \
+  --header-out outputs/paper/spline_structs_sollya_bf16.generated.cuh \
+  --json-out outputs/paper/sollya_device_bf16.generated.json
+
+python extras/paper/check_paper_tables.py \
+  --function-comparison outputs/paper/sollya_device_bf16.generated.json \
+  --function-lineage extras/paper/function_table_lineage.json \
+  --allow-review-required \
+  --output outputs/paper/table_audit.json
+```
+
+The retained deployed-header comparison and released integration,
+complete-model, downstream, and pre-training evidence reproduce the
+manuscript's rounded table cells. Running the checker without overrides audits
+all five retained sources without requiring Sollya. For Table 2, this is a
+numeric source-to-typeset audit only.
+
+`extras/paper/generate_sollya_comparison.py` is an auxiliary D3--D6
+coefficient-sweep sensitivity control, not the Table 2 source. Seven selected
+cells differ after manuscript rounding because (1) its sigmoid D3 row uses the
+earlier fit and clamp 4.75 instead of the later deployed fit and clamp 6.0,
+(2) the later tanh D4 device refit is absent from the sweep, (3) its Sollya
+side directly fits the SiLU residual while the table composes both columns
+from sigmoid coefficients, and (4) its GELU paths use the FP16 sweep and an
+11-bit Sollya budget rather than the table's deployed BF16 header and
+8-bit/BF16 control.
+
+Those workflow divergences are distinct from the retained Table 2 semantic
+review: asymmetric coefficient rounding, host NumPy rather than device error,
+and incomplete endpoint-constrained least-squares lineage. The default checker
+reports `review-required` and exits 2 even when all numeric cells match. Add
+`--allow-review-required` only to acknowledge the recorded open items while
+inspecting the numeric audit; it does not resolve them and cannot permit a
+numeric or lineage mismatch. A newly generated comparison uses its embedded
+`measurement` semantics instead of the retained artifact SHA. The
+[function-table review](../extras/paper/FUNCTION_TABLE_REVIEW.md) records the
+publication check.
+
+The self-contained manuscript source is in `extras/paper/manuscript`. Its
+allowlist contains 21 arXiv upload files and excludes raw evidence, internal
+review archives, and proprietary fonts:
+
+```bash
+cd extras/paper/manuscript
+sha256sum -c SOURCE_MANIFEST.sha256
+latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
+```
+
+The source compiles with TeX Live 2023. Graphcore branding and the manuscript's
+arXiv license remain rights-holder decisions; they are not granted by the
+repository's Apache-2.0 software license.
 
 ## Result metadata
 

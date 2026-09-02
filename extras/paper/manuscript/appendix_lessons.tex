@@ -1,0 +1,15 @@
+\begin{enumerate}[leftmargin=1.4em]
+    \item \textbf{Generated instruction schedules determine latency.}
+    High-level CuTe expressions sometimes lower to long instruction sequences;
+    the workflow inspects the generated PTX.
+    \item \textbf{Backward has its own error profile.} Direct backward fitting
+    is used when the differentiated forward approximation exceeds the training
+    error budget.
+    \item \textbf{Algorithmic invariants accompany pointwise error.}
+    Online-softmax approximations preserve interval endpoints alongside the
+    scalar error bound.
+    \item \textbf{Integration determines exposure.} The fractional
+    exponential core measures 1.898x before its surrounding FA4 work and
+    1.0008x at the model step. B1 measures 1.005x in full forward and 1.038x
+    in backward, producing a 1.027x complete-step result.
+\end{enumerate}

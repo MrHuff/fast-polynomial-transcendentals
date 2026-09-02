@@ -22,7 +22,7 @@ fill a gap in a historical artifact.
 | Target | Public implementation | What can be rerun | Historical boundary |
 |---|---|---|---|
 | FP16 sigmoid, tanh, sigmoid derivative, tanh derivative, and SiLU derivative fits | `autonumerics_zero/evolution/fit_all_degrees.py` | The retained D3--D6 constrained least-squares sweep and FP16 Horner replay, with a caller-selected JSON output | The default path preserves historical behavior; the manifest writes a new output without altering checked-in evidence |
-| BF16 same-form activation fits | `autonumerics_zero/evolution/fit_all_degrees_bf16.py`, `autonumerics_zero/evolution/generate_bf16_structs.py`, and `autonumerics_zero/spline_ops/generate_sollya_structs_bf16.py` | The retained search surrogate, a caller-directed candidate-header generation receipt, and the Sollya comparison | The candidate generator fits sigmoid/tanh/SiLU families and copies ERF/GELU from the named fallback header; promotion is a separate review step. The historical search rounds multiplication and addition separately, while packed device FMA has different rounding |
+| BF16 same-form activation fits | `autonumerics_zero/evolution/fit_all_degrees_bf16.py`, `autonumerics_zero/evolution/generate_bf16_structs.py`, and `autonumerics_zero/spline_ops/generate_sollya_structs_bf16.py` | The retained search surrogate, a caller-directed candidate-header generation receipt, and a new host-arithmetic Sollya comparison | The candidate generator fits sigmoid/tanh/SiLU families and copies ERF/GELU from the named fallback header; promotion is a separate review step. The historical search rounds multiply and add separately, while packed device FMA differs. The Table 2 producer leaves current header literals unrounded in its host calculation, BF16-rounds Sollya coefficients, and does not establish endpoint-constrained least-squares lineage for every row |
 | ERF and GELU FP16 fits | `autonumerics_zero/evolution/fit_gelu_fp16.py` | The original D3--D6 fit/clamp sweep, with output redirected to a caller-selected JSON file | The deployed BF16 ERF/GELU structs were initialized from these FP16-derived coefficients; this does not make the fitter a BF16 instruction emulator |
 | B2 softcap tanh | `autonumerics_zero/evolution/fit_fa4_tanh_backends.py` | Separate CuTe-FP32 and handwritten-device-BF16 fitting targets | A new fit is source-bound to its recorded arguments and environment; device accuracy still requires the compiled path |
 | B3 direct sigmoid attention | `flash-attention/flash_attn/cute/polynomial_manifest.py`, `flash-attention/flash_attn/cute/handwritten_spline_ptx.py`, and `scripts/audit_b3_deployed_fit.py` | The exact deployed constants and an emulation of the packed-BF16 arithmetic can be audited on a declared CPU grid | **Blocked as a historical fit replay:** the program, objective, weighting, and sample set that selected the deployed D3/D4 coefficients were not retained |
@@ -125,6 +125,20 @@ FlashAttention is required only for the Kimi profile that imports it.
 `--allow-unbound-source` exists for diagnostic summaries and places the output
 outside the declared paper-quality public protocol; it does not weaken the
 measurement-protocol checks.
+
+## Paper extras
+
+| Artifact | Public workflow | Evidence boundary |
+|---|---|---|
+| Paired B1--B4 loss figure | `extras/paper/plot_paired_loss_curves.py` reads the retained CSV and its SHA-bound provenance | Reproduces the current paper layout offline; it does not fetch service histories or rerun training |
+| Method figures | `extras/paper/generate_method_figures.py` uses the checked-in BF16 coefficient sweep | Deterministic CPU reconstruction; packed arithmetic is a software replay |
+| Six activation-accuracy figures | `extras/paper/generate_accuracy_figures.py` measures the explicitly loaded `spline_ops` binary | Requires CUDA and produces a new measurement with source and binary hashes |
+| Sollya coefficient controls | Core `generate_sollya_structs_bf16.py` emits the retained artifact shape; `extras/paper/generate_sollya_comparison.py` is a separate auxiliary coefficient-sweep sensitivity analysis | The retained JSON is the numeric Table 2 source. The auxiliary control differs because of the earlier sigmoid D3 fit/clamp, missing tanh D4 device refit, direct SiLU fitting on its Sollya side rather than composition of both table columns from sigmoid, and FP16/11-bit rather than BF16/8-bit GELU control. Separately, the retained producer uses host arithmetic, handles current and Sollya BF16 rounding asymmetrically, and has incomplete row-level endpoint-LS lineage |
+| Quantitative table audit | `extras/paper/check_paper_tables.py` checks a SHA-bound `main.tex` claim map against released evidence while ignoring identifier columns | All five groups pass numerically at manuscript rounding. The default result remains `review-required` until Table 2 semantics are resolved; see `extras/paper/FUNCTION_TABLE_REVIEW.md` |
+| Manuscript source | `extras/paper/manuscript/` contains the 21-file arXiv allowlist and SHA manifest | Builds offline with TeX Live 2023; branding and manuscript licensing require separate approval |
+
+Commands and output receipts are documented in
+[`extras/paper/TOOLING.md`](../extras/paper/TOOLING.md).
 
 ## Offline historical evidence
 

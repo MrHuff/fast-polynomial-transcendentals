@@ -1,0 +1,13 @@
+Rotary position embedding (RoPE) supplies a paired-function experiment because
+sine is odd, cosine is even, and both share one periodic reduction. For angular
+frequency $\omega_i$, the host stores the unsigned Q0.32 turn increment
+$\Delta_i=\operatorname{round}(\omega_i2^{32}/2\pi)$ in a 32-bit word. At
+position $p$, the kernel forms $(p\Delta_i)\bmod 2^{32}$, reduces it to a signed
+Q15 half-turn coordinate, and evaluates a packed FP16 D5 sine and D6 cosine with
+shared squared input. Each thread processes four frequencies as two packed
+pairs. The fitting, numerical-check, repeated-evaluator, and fused-RoPE drivers
+are under \path{src/sfu_repro/rope/} in the standalone reproduction repository.
+The retained timing summaries do not identify a final quantitative comparison,
+so this appendix reports the implementation and integration boundary.
+
+\FloatBarrier

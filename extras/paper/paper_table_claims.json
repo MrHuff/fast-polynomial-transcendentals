@@ -3,7 +3,7 @@
   "scope": "Quantitative tables in the September 2026 manuscript snapshot packaged under extras/paper/manuscript",
   "manuscript_source": {
     "path": "extras/paper/manuscript/main.tex",
-    "sha256": "9f17a57747f8f3edd4933cd3af2c9ac6815a702c8f3ab865cedd820834c753f6"
+    "sha256": "e6ce2c9592f52d2df5cc5566a6b6e8fdee90cbf4318e0b80d333a35247bb1939"
   },
   "tables": {
     "function-summary": {

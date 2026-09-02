@@ -12,7 +12,9 @@ authors = [
   { name = "Robert Hu", email = "robert.stats.hu@gmail.com" },
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "jsonschema>=4.21",
+]
 
 [project.optional-dependencies]
 analysis = [
@@ -34,6 +36,9 @@ sfu-validate = "sfu_repro.artifact:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"sfu_repro.schemas" = ["*.json"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

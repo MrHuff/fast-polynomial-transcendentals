@@ -10,6 +10,11 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = REPOSITORY_ROOT / "evidence/SHA256SUMS"
+MATERIALIZED_ROOTS = (
+    REPOSITORY_ROOT / "autonumerics_zero/cuda_benchmarks/analysis_results",
+    REPOSITORY_ROOT / "evidence/figures",
+    REPOSITORY_ROOT / "evidence/report-data",
+)
 
 
 def digest(path: Path) -> str:
@@ -47,7 +52,19 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
     failures: list[str] = []
-    for expected, relative in entries(args.manifest):
+    manifest_entries = entries(args.manifest)
+    listed = {relative for _, relative in manifest_entries}
+    materialized = {
+        path.relative_to(REPOSITORY_ROOT)
+        for root in MATERIALIZED_ROOTS
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+    for relative in sorted(materialized - listed):
+        failures.append(f"unlisted materialized evidence {relative}")
+    for relative in sorted(listed - materialized):
+        failures.append(f"manifest path outside materialized evidence roots {relative}")
+    for expected, relative in manifest_entries:
         candidate = REPOSITORY_ROOT / relative
         if not candidate.is_file():
             failures.append(f"missing {relative}")

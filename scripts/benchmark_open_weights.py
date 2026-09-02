@@ -23,11 +23,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import re
 import subprocess
 import sys
-import traceback
 from dataclasses import asdict, dataclass, field
+from importlib.metadata import PackageNotFoundError, version as distribution_version
 from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
@@ -53,6 +54,16 @@ GEMMA_FA4_TANH_RE = re.compile(
 )
 ROUTER_SIGMOID_RE = re.compile(
     r"^spline_router_sigmoid_d(?P<degree>[0-9]+)_(?P<source>current|sollya)$"
+)
+_URL_RE = re.compile(r"(?i)\b(?:https?|s3|gs|az)://[^\s<>'\"]+")
+_BEARER_RE = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+")
+_TOKEN_RE = re.compile(
+    r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|"
+    r"(?:AKIA|ASIA)[A-Z0-9]{16}|xox[baprs]-[A-Za-z0-9-]{20,})\b"
+)
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)\b(api[_-]?key|access[_-]?token|auth(?:orization)?|password|secret)"
+    r"\s*[:=]\s*[^\s,;]+"
 )
 
 
@@ -2074,8 +2085,54 @@ def print_results(results: list[Result]) -> None:
             print(f"  {result.error}")
 
 
-def repository_state() -> dict[str, Any]:
-    repository = Path(__file__).resolve().parents[1]
+def sanitize_exception(error: BaseException) -> str:
+    """Return a useful, single-line error without credentials or provider URLs."""
+
+    message = str(error)
+    environment_token = os.environ.get("HF_TOKEN")
+    if environment_token:
+        message = message.replace(environment_token, "[redacted-secret]")
+    message = _URL_RE.sub("[redacted-url]", message)
+    message = _BEARER_RE.sub("Bearer [redacted-secret]", message)
+    message = _TOKEN_RE.sub("[redacted-secret]", message)
+    message = _SECRET_ASSIGNMENT_RE.sub(r"\1=[redacted-secret]", message)
+    message = " ".join(message.split())
+    if not message:
+        message = "message unavailable"
+    if len(message) > 500:
+        message = message[:497] + "..."
+    return f"{type(error).__name__}: {message}"
+
+
+def git_worktree_state(repository: Path) -> tuple[bool | None, int | None]:
+    try:
+        completed = subprocess.run(
+            ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+            cwd=repository,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return None, None
+    if completed.returncode:
+        return None, None
+    entries = tuple(entry for entry in completed.stdout.split("\0") if entry)
+    return bool(entries), sum(entry.startswith("?? ") for entry in entries)
+
+
+def package_version(distribution: str) -> str | None:
+    try:
+        return distribution_version(distribution)
+    except PackageNotFoundError:
+        return None
+
+
+def repository_state(
+    repository: Path | None = None,
+) -> dict[str, Any]:
+    repository = repository or Path(__file__).resolve().parents[1]
 
     def git(*arguments: str) -> str | None:
         completed = subprocess.run(
@@ -2089,11 +2146,12 @@ def repository_state() -> dict[str, Any]:
         return completed.stdout.strip() if completed.returncode == 0 else None
 
     revision = git("rev-parse", "HEAD")
-    status = git("status", "--porcelain", "--untracked-files=no")
+    dirty, untracked_files = git_worktree_state(repository)
     return {
         "repository": "https://github.com/MrHuff/fast-polynomial-transcendentals",
-        "revision": revision or "unknown",
-        "tracked_worktree_dirty": None if status is None else bool(status),
+        "revision": revision if revision and len(revision) == 40 else None,
+        "dirty": dirty,
+        "untracked_files": untracked_files,
         "legacy_source": {
             "repository": "graphcore-research/low-bits-training",
             "revision": "393b69e2993ef00c812dfc87ac5f93c146159f45",
@@ -2103,8 +2161,16 @@ def repository_state() -> dict[str, Any]:
 
 def result_document(results: list[Result], args: argparse.Namespace) -> dict[str, Any]:
     device: dict[str, Any] = {
-        "torch_version": torch.__version__,
-        "cuda_version": torch.version.cuda,
+        "python": platform.python_version(),
+        "torch": torch.__version__,
+        "cuda": torch.version.cuda,
+        "packages": {
+            "sfu-repro": package_version("sfu-repro"),
+            "transformers": package_version("transformers"),
+            "lm-eval": package_version("lm-eval"),
+            "accelerate": package_version("accelerate"),
+            "safetensors": package_version("safetensors"),
+        },
     }
     if args.device.startswith("cuda") and torch.cuda.is_available():
         index = torch.device(args.device).index
@@ -2121,8 +2187,15 @@ def result_document(results: list[Result], args: argparse.Namespace) -> dict[str
         "schema_version": 1,
         "experiment": {
             "id": "open-weight-evaluation",
+            "provenance_class": "new-measurement",
             "models": list(args.model),
             "variants": list(args.variant),
+            "requested_model_revisions": {
+                model: args.revision for model in args.model
+            },
+            "requested_tokenizer_revisions": {
+                model: args.revision for model in args.model
+            },
         },
         "source": repository_state(),
         "environment": device,
@@ -2331,11 +2404,12 @@ def main() -> int:
                         )
                     )
                 except Exception as exc:
+                    sanitized_error = sanitize_exception(exc)
                     print(
-                        f"[error] {model_id} {raw_variant} failed:",
+                        f"[error] {model_id} {raw_variant} failed: "
+                        f"{sanitized_error}",
                         file=sys.stderr,
                     )
-                    traceback.print_exc()
                     all_results.append(
                         Result(
                             model=model_id,
@@ -2344,13 +2418,14 @@ def main() -> int:
                             device=args.device,
                             batch_size=args.batch_size,
                             seq_len=args.seq_len,
-                            error=f"{type(exc).__name__}: {exc}",
+                            error=sanitized_error,
                         )
                     )
                 finally:
                     write_json_results(args.json_out, all_results, args)
                     torch.cuda.empty_cache()
         except Exception as exc:
+            sanitized_error = sanitize_exception(exc)
             for raw_variant in args.variant:
                 all_results.append(
                     Result(
@@ -2360,7 +2435,7 @@ def main() -> int:
                         device=args.device,
                         batch_size=args.batch_size,
                         seq_len=args.seq_len,
-                        error=f"{type(exc).__name__}: {exc}",
+                        error=sanitized_error,
                     )
                 )
         finally:

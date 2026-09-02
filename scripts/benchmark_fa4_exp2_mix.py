@@ -44,11 +44,11 @@ parse_frequency = parse_exp2_frequency
 parse_variants = parse_exp2_variants
 
 
-def git_revision() -> str:
+def git_revision(repository: Path = REPOSITORY_ROOT) -> str:
     try:
         return subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
-            cwd=REPOSITORY_ROOT,
+            cwd=repository,
             text=True,
             stderr=subprocess.DEVNULL,
         ).strip()
@@ -56,17 +56,26 @@ def git_revision() -> str:
         return "unknown"
 
 
-def git_worktree_dirty() -> bool | None:
+def git_worktree_state(
+    repository: Path = REPOSITORY_ROOT,
+) -> tuple[bool | None, int | None]:
     try:
         status = subprocess.check_output(
-            ["git", "status", "--porcelain", "--untracked-files=no"],
-            cwd=REPOSITORY_ROOT,
+            ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+            cwd=repository,
             text=True,
             stderr=subprocess.DEVNULL,
         )
-        return bool(status.strip())
+        entries = tuple(entry for entry in status.split("\0") if entry)
+        untracked_files = sum(entry.startswith("?? ") for entry in entries)
+        return bool(entries), untracked_files
     except (OSError, subprocess.CalledProcessError):
-        return None
+        return None, None
+
+
+def flash_attention_revision(repository: Path = REPOSITORY_ROOT) -> str | None:
+    revision = git_revision(repository / "flash-attention")
+    return revision if len(revision) == 40 else None
 
 
 def build_module(
@@ -329,6 +338,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         )
 
     properties = torch.cuda.get_device_properties(0)
+    dirty, untracked_files = git_worktree_state()
     return {
         "schema_version": 1,
         "experiment": {
@@ -339,7 +349,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "source": {
             "repository": "MrHuff/fast-polynomial-transcendentals",
             "revision": (revision if len(revision := git_revision()) == 40 else None),
-            "dirty": git_worktree_dirty(),
+            "dirty": dirty,
+            "untracked_files": untracked_files,
+            "external_components": {
+                "flash-attention": flash_attention_revision(),
+            },
         },
         "environment": {
             "gpu": properties.name,

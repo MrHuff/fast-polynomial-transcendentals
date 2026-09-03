@@ -24,8 +24,7 @@
 \reportsubtitle{Target-Precision Programs under Asymmetric GPU Scaling}
 \reportfocus{Low-degree polynomial transcendentals for attention, dense activations, and routed experts.}
 \reportfooter{Fast polynomial transcendentals}
-\reportemail{Correspondence: \href{mailto:robert.stats.hu@gmail.com}{\nolinkurl{robert.stats.hu@gmail.com}}\\[1mm]
-Code and artifacts: \href{https://github.com/MrHuff/fast-polynomial-transcendentals}{\nolinkurl{github.com/MrHuff/fast-polynomial-transcendentals}}}
+\reportemail{Correspondence: \href{mailto:robert.stats.hu@gmail.com}{\nolinkurl{robert.stats.hu@gmail.com}}}
 \author{Robert Hu}
 \date{August 2026}
 \hypersetup{
@@ -175,7 +174,9 @@ This paper makes three contributions:
     \item We lower the accepted programs to packed CUDA and inline Parallel
     Thread Execution (PTX) code in four consuming LLM components. B1, B2, and
     B4 improve complete-step throughput by 2.7\%, 2.9\%, and 8.0\%; B3 improves
-    complete attention forward by 7.4\%.
+    complete attention forward by 7.4\%. We release the fitting tools, packed
+    kernels, portable integration and evaluation code, and supporting artifacts;
+    repository and reproduction details appear in \cref{app:reproducibility}.
     \item We evaluate degree-4 substitutions in five open-weight models and
     compare native and polynomial pre-training trajectories for each case. At
     common horizons near 100 billion tokens, final smoothed training-loss
@@ -1123,7 +1124,7 @@ instructions and exclude register declarations.
 
 \input{appendix_lessons.tex}
 
-\section{Reproducibility}
+\section{Code and Reproducibility}
 \label{app:reproducibility}
 
 \begingroup

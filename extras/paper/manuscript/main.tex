@@ -95,17 +95,19 @@ first compare native PyTorch evaluation with packed fused multiply--add
 (FMA) programs in an isolated IEEE binary16 (FP16) sweep spanning L2-resident
 and high-bandwidth-memory (HBM)-resident working sets. We then replace native
 sigmoid, tanh, and sigmoid linear unit (SiLU) with degree-3 or degree-4
-bfloat16 (BF16) programs in four GB200 cases: dense SiLU, tanh-softcapped
-attention, sigmoid attention, and routed-expert Swish-gated linear unit
+bfloat16 (BF16) programs in four GB200 integration tasks: dense SiLU,
+tanh-softcapped attention, sigmoid attention, and routed-expert Swish-gated linear unit
 (SwiGLU). The programs combine analytical symmetry, target-format rounding,
 and packed arithmetic inside consuming kernels. The isolated paths improve by
-1.19--2.19x in L2 and 1.00--1.70x in HBM. B1, B2, and B4 improve complete
-training-step throughput by 2.7\%, 2.9\%, and 8.0\%; B3 improves
-sigmoid-attention forward by 7.4\% and the complete GPU step by 0.3\%.
-Same-checkpoint open-weight ablations and one paired pre-training comparison per
-case extend the evaluation to model behavior. At common horizons near 100
-billion tokens, the final smoothed training-loss deltas (polynomial minus
-native) are $+0.079$, $+0.003$, $-0.107$, and $+0.003$ for B1--B4.
+1.19--2.19x in L2 and 1.00--1.70x in HBM. The dense-SiLU,
+tanh-softcapped-attention, and routed-expert substitutions improve complete
+training-step throughput by 2.7\%, 2.9\%, and 8.0\%, respectively. The
+sigmoid-attention substitution improves complete-attention forward by 7.4\%
+and the complete GPU step by 0.3\%. Same-checkpoint open-weight ablations and
+one paired pre-training comparison per task extend the evaluation to model
+behavior. At common horizons near 100 billion tokens, the final smoothed
+training-loss differences (polynomial minus native) range from $-0.107$ to
+$+0.079$ across the four tasks.
 \end{abstract}
 
 \keywords{GPU kernels, polynomial approximation, transcendental functions,
@@ -133,10 +135,8 @@ trace each candidate from target-precision error through consuming-component
 runtime and complete-step throughput, then measure same-checkpoint task
 accuracy, word perplexity, prefill and decode throughput, and paired
 pre-training loss.
-Throughout, ``native'' denotes the unchanged implementation of the same
-transcendental at the same integration site.
 
-We investigate the four integration cases summarized in \cref{tab:cases}.
+We investigate the four integration tasks summarized in \cref{tab:cases}.
 
 \begin{table}[H]
 \centering
@@ -162,6 +162,9 @@ Does packed SwiGLU increase routed-expert training-step throughput? \\
 \bottomrule
 \end{tabular*}
 \end{table}
+
+Throughout, ``native'' denotes the unchanged implementation of the same
+transcendental for the same integration task.
 
 This paper makes three contributions:
 \begin{itemize}[leftmargin=1.4em]
